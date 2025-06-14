@@ -1,0 +1,48 @@
+name: ai_food_recognizer_app
+description: "A new Flutter project."
+publish_to: 'none' 
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.2.3 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # Firebase & ML Cloud
+  firebase_core: ^3.4.0
+  firebase_ml_model_downloader: ^0.3.1
+
+  # Machine Learning (Lokal)
+  tflite_flutter: ^0.11.0
+  flutter_isolate: ^2.0.4
+
+  # Kamera & Gambar
+  camera: ^0.11.0+1
+  image_picker: ^1.1.2
+  image_cropper: ^9.1.0
+
+  # Jaringan & API
+  http: ^1.2.1
+  google_generative_ai: ^0.4.3
+  image: ^4.2.0 # Tambahkan package image
+
+  # Utilitas
+  path_provider: ^2.1.3
+  flutter_bloc: ^9.1.1
+
+  cupertino_icons: ^1.0.6
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  flutter_lints: ^5.0.0
+
+flutter:
+  uses-material-design: true
+
+  # To add assets to your application, add an assets section, like this:
+  assets:
+    - assets/ML/

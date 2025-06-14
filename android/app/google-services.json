@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "508307779552",
+    "project_id": "ai-food-recognizer",
+    "storage_bucket": "ai-food-recognizer.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:508307779552:android:250e4d3199af17327e8585",
+        "android_client_info": {
+          "package_name": "com.example.ai_food_recognizer_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDEmK477vGvnsmNxPtfOoi6op2lVNytehE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
