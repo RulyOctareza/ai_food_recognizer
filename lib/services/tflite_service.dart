@@ -4,6 +4,7 @@ import 'dart:typed_data'; // Untuk Float32List
 import 'package:flutter/services.dart';
 import 'package:tflite_flutter/tflite_flutter.dart';
 import 'package:ai_food_recognizer_app/models/prediction_model.dart';
+import 'package:ai_food_recognizer_app/models/food_labels.dart';
 import 'package:image/image.dart' as img; // Import package image
 
 class TfliteService {
@@ -20,9 +21,8 @@ class TfliteService {
     try {
       print('Mencoba memuat model dari: $_modelAsset');
 
-      // Inisialisasi label placeholder
-      _labels = List.generate(
-          _numClasses, (index) => 'Makanan Teridentifikasi $index');
+      // Gunakan nama makanan yang sebenarnya
+      _labels = FoodLabels.generateAllLabels(_numClasses);
       print('Jumlah label yang di-generate: ${_labels?.length}');
 
       // Memuat model dengan opsi yang lebih spesifik
@@ -98,16 +98,20 @@ class TfliteService {
       // 4. Memproses Output
       // outputTensor[0] bisa berupa List<int> atau List<double>, konversi ke double
       List<dynamic> rawOutput = outputTensor[0];
-      List<double> probabilities = rawOutput.map((e) => e.toDouble()).toList().cast<double>();
-      
+      List<double> probabilities =
+          rawOutput.map((e) => e.toDouble()).toList().cast<double>();
+
       print('Output tensor type: ${rawOutput.runtimeType}');
       print('First few probabilities: ${probabilities.take(5).toList()}');
-      print('Max probability: ${probabilities.reduce((a, b) => a > b ? a : b)}');
-      print('Min probability: ${probabilities.reduce((a, b) => a < b ? a : b)}');
+      print(
+          'Max probability: ${probabilities.reduce((a, b) => a > b ? a : b)}');
+      print(
+          'Min probability: ${probabilities.reduce((a, b) => a < b ? a : b)}');
 
       // Normalisasi menggunakan softmax jika diperlukan
       double maxLogit = probabilities.reduce((a, b) => a > b ? a : b);
-      List<double> expValues = probabilities.map((x) => exp(x - maxLogit)).toList();
+      List<double> expValues =
+          probabilities.map((x) => exp(x - maxLogit)).toList();
       double sumExp = expValues.reduce((a, b) => a + b);
       List<double> normalizedProbs = expValues.map((x) => x / sumExp).toList();
 
@@ -121,7 +125,8 @@ class TfliteService {
         }
       }
 
-      print('Indeks terbaik: $bestLabelIndex, Kepercayaan normalized: $highestConfidence');
+      print(
+          'Indeks terbaik: $bestLabelIndex, Kepercayaan normalized: $highestConfidence');
 
       if (bestLabelIndex != -1 &&
           _labels != null &&
