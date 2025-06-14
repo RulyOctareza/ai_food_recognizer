@@ -4,13 +4,16 @@ import 'dart:typed_data'; // Untuk Float32List
 import 'package:flutter/services.dart';
 import 'package:tflite_flutter/tflite_flutter.dart';
 import 'package:ai_food_recognizer_app/models/prediction_model.dart';
-import 'package:ai_food_recognizer_app/models/food_labels.dart';
+import 'package:ai_food_recognizer_app/utils/model_label_extractor.dart';
+import 'package:ai_food_recognizer_app/services/firebase_ml_service.dart';
 import 'package:image/image.dart' as img; // Import package image
+import 'package:ai_food_recognizer_app/services/isolate_inference_service.dart';
 
 class TfliteService {
   Interpreter? _interpreter;
   List<String>? _labels;
   bool _modelLoaded = false;
+  final FirebaseMlService _firebaseMlService = FirebaseMlService();
 
   final String _modelAsset = 'assets/ML/food-reconizer.tflite';
   static const int _inputSize = 192; // Ubah sesuai dengan model: 192x192
@@ -19,15 +22,43 @@ class TfliteService {
   Future<void> loadModel() async {
     if (_modelLoaded) return;
     try {
-      print('Mencoba memuat model dari: $_modelAsset');
+      print('Memuat model TFLite...');
 
-      // Gunakan nama makanan yang sebenarnya
-      _labels = FoodLabels.generateAllLabels(_numClasses);
-      print('Jumlah label yang di-generate: ${_labels?.length}');
+      // Dapatkan path model dari Firebase ML Service
+      String? modelPath = await _firebaseMlService.getModelPath();
+      
+      if (modelPath == null) {
+        print('Gagal mendapatkan model path, menggunakan model dari assets');
+        modelPath = _modelAsset;
+      } else {
+        print('Menggunakan model dari: $modelPath');
+      }
+
+      // Coba ekstrak label dari model, jika gagal gunakan label default
+      _labels = await ModelLabelExtractor.extractLabelsFromTflite(modelPath);
+      if (_labels == null) {
+        // Gunakan label yang lebih spesifik dari ModelLabelExtractor
+        _labels = ModelLabelExtractor.getFoodLabels2024();
+        if (_labels!.length > _numClasses) {
+          _labels = _labels!.take(_numClasses).toList();
+        } else if (_labels!.length < _numClasses) {
+          // Tambahkan label generic jika kurang
+          while (_labels!.length < _numClasses) {
+            _labels!.add('Unknown Food ${_labels!.length + 1}');
+          }
+        }
+      }
+      print('Jumlah label yang dimuat: ${_labels?.length}');
 
       // Memuat model dengan opsi yang lebih spesifik
       final options = InterpreterOptions()..threads = 4;
-      _interpreter = await Interpreter.fromAsset(_modelAsset, options: options);
+      
+      // Load model berdasarkan apakah dari Firebase ML atau assets
+      if (modelPath == _modelAsset) {
+        _interpreter = await Interpreter.fromAsset(modelPath, options: options);
+      } else {
+        _interpreter = await Interpreter.fromFile(File(modelPath), options: options);
+      }
 
       print(
           'Model berhasil dimuat. Input tensor shape: ${_interpreter?.getInputTensor(0).shape}');
@@ -134,13 +165,59 @@ class TfliteService {
         // Pastikan confidence adalah nilai antara 0 dan 1
         double confidenceScore = highestConfidence.clamp(0.0, 1.0);
         return PredictionModel(
-            label: _labels![bestLabelIndex], confidence: confidenceScore);
+            label: _labels![bestLabelIndex], 
+            confidence: confidenceScore,
+            index: bestLabelIndex);
       } else {
         print('Gagal menemukan label yang valid atau _labels null.');
-        return PredictionModel(label: "Tidak Dikenali", confidence: 0.0);
+        return PredictionModel(
+            label: "Tidak Dikenali", 
+            confidence: 0.0,
+            index: -1);
       }
     } catch (e) {
       print('Error selama inferensi TFLite: $e');
+      return null;
+    }
+  }
+
+  // Method untuk inference dengan background isolate
+  Future<PredictionModel?> predictImageWithIsolate(File imageFile) async {
+    if (!_modelLoaded || _interpreter == null) {
+      print('Model belum dimuat. Panggil loadModel() terlebih dahulu.');
+      await loadModel();
+      if (!_modelLoaded || _interpreter == null) {
+        print('Gagal memuat model setelah percobaan kedua.');
+        return null;
+      }
+    }
+
+    try {
+      // Dapatkan path model
+      String? modelPath = await _firebaseMlService.getModelPath();
+      if (modelPath == null) {
+        modelPath = _modelAsset;
+      }
+
+      // Untuk tujuan demo dan pengembangan, kita menggunakan metode biasa
+      // dan mensimulasikan prosesnya di background
+      print('Memulai prediksi gambar menggunakan TFLite di background...');
+      
+      // Kita bisa menambahkan implementasi isolate yang sebenarnya nanti
+      // saat aplikasi sudah stabil
+      return await predictImage(imageFile);
+      
+      // Jalankan inference di background isolate - uncomment later
+      /*
+      final prediction = await IsolateInferenceService.runInference(
+        imagePath: imageFile.path,
+        modelPath: modelPath,
+        labels: _labels ?? [],
+      );
+      return prediction;
+      */
+    } catch (e) {
+      print('Error saat menjalankan inference dengan isolate: $e');
       return null;
     }
   }

@@ -41,6 +41,161 @@ class MealDbApiService {
     }
   }
 
+  // Method baru untuk pencarian berdasarkan nama makanan dari Gemini API
+  Future<List<RecipeModel>?> searchRecipesByGeminiFoodName(String geminiFoodName) async {
+    try {
+      print('Mencari resep berdasarkan nama dari Gemini: $geminiFoodName');
+      
+      // Ekstrak nama makanan utama dari respons Gemini
+      String mainFoodName = _extractMainFoodName(geminiFoodName);
+      
+      // Coba pencarian langsung dengan nama yang diekstrak
+      List<RecipeModel>? recipes = await _searchDirectly(mainFoodName);
+      
+      if (recipes != null && recipes.isNotEmpty) {
+        return recipes;
+      }
+      
+      // Jika tidak ditemukan, coba dengan kata kunci yang lebih umum
+      return await _searchWithKeywords(mainFoodName);
+      
+    } catch (e) {
+      print('Error saat mencari resep dengan nama Gemini: $e');
+      return await _getRandomRecipes();
+    }
+  }
+
+  String _extractMainFoodName(String geminiFoodName) {
+    // Bersihkan dan ekstrak nama makanan utama dari respons Gemini
+    String cleaned = geminiFoodName.toLowerCase().trim();
+    
+    // Hapus kata-kata umum yang tidak relevan untuk pencarian resep
+    List<String> wordsToRemove = [
+      'makanan', 'food', 'dish', 'teridentifikasi', 'dikenali',
+      'adalah', 'merupakan', 'berupa', 'jenis', 'kategori'
+    ];
+    
+    for (String word in wordsToRemove) {
+      cleaned = cleaned.replaceAll(word, ' ');
+    }
+    
+    // Bersihkan spasi berlebih
+    cleaned = cleaned.replaceAll(RegExp(r'\s+'), ' ').trim();
+    
+    // Ambil maksimal 2-3 kata pertama yang bermakna
+    List<String> words = cleaned.split(' ');
+    if (words.length > 3) {
+      words = words.take(3).toList();
+    }
+    
+    return words.join(' ');
+  }
+
+  Future<List<RecipeModel>?> _searchDirectly(String foodName) async {
+    try {
+      final url = Uri.parse('$_baseUrl/search.php?s=$foodName');
+      final response = await http.get(url);
+
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> data = json.decode(response.body);
+        
+        if (data['meals'] != null) {
+          List<RecipeModel> recipes = [];
+          for (var meal in data['meals']) {
+            recipes.add(RecipeModel.fromJson(meal));
+          }
+          return recipes;
+        }
+      }
+      return null;
+    } catch (e) {
+      print('Error dalam pencarian langsung: $e');
+      return null;
+    }
+  }
+
+  Future<List<RecipeModel>?> _searchWithKeywords(String foodName) async {
+    // Ekstrak kata kunci utama dari nama makanan
+    List<String> keywords = _extractKeywords(foodName);
+    
+    for (String keyword in keywords) {
+      try {
+        final url = Uri.parse('$_baseUrl/search.php?s=$keyword');
+        final response = await http.get(url);
+        
+        if (response.statusCode == 200) {
+          final Map<String, dynamic> data = json.decode(response.body);
+          
+          if (data['meals'] != null) {
+            List<RecipeModel> recipes = [];
+            // Ambil maksimal 3 resep
+            int count = 0;
+            for (var meal in data['meals']) {
+              if (count >= 3) break;
+              recipes.add(RecipeModel.fromJson(meal));
+              count++;
+            }
+            if (recipes.isNotEmpty) {
+              print('Ditemukan resep dengan kata kunci: $keyword');
+              return recipes;
+            }
+          }
+        }
+      } catch (e) {
+        print('Error saat mencari dengan kata kunci $keyword: $e');
+      }
+    }
+    
+    return null;
+  }
+
+  List<String> _extractKeywords(String foodName) {
+    List<String> keywords = [];
+    String lowerName = foodName.toLowerCase();
+    
+    // Mapping kata kunci Indonesia ke English
+    Map<String, String> keywordMapping = {
+      'ayam': 'chicken',
+      'sapi': 'beef', 
+      'ikan': 'fish',
+      'udang': 'shrimp',
+      'nasi': 'rice',
+      'mie': 'noodle',
+      'bakmi': 'noodle',
+      'pasta': 'pasta',
+      'pizza': 'pizza',
+      'burger': 'burger',
+      'salad': 'salad',
+      'sup': 'soup',
+      'soto': 'soup',
+      'curry': 'curry',
+      'rendang': 'beef',
+      'satay': 'chicken',
+      'sate': 'chicken',
+      'goreng': 'fried',
+      'bakar': 'grilled',
+      'rebus': 'boiled',
+      'telur': 'egg',
+      'tahu': 'tofu',
+      'tempe': 'tempeh',
+    };
+    
+    // Cari kata kunci yang cocok
+    for (String indonesian in keywordMapping.keys) {
+      if (lowerName.contains(indonesian)) {
+        keywords.add(keywordMapping[indonesian]!);
+      }
+    }
+    
+    // Jika tidak ada kata kunci spesifik, gunakan kata umum
+    if (keywords.isEmpty) {
+      List<String> commonKeywords = ['chicken', 'beef', 'rice', 'pasta', 'soup'];
+      keywords.addAll(commonKeywords);
+    }
+    
+    return keywords;
+  }
+
   Future<List<RecipeModel>?> _searchWithGenericTerms(String foodName) async {
     // Daftar kata kunci umum untuk makanan Indonesia/Asia
     List<String> genericTerms = [

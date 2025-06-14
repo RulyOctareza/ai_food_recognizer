@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:ai_food_recognizer_app/models/prediction_model.dart';
 import 'package:ai_food_recognizer_app/widgets/nutrition_tab.dart';
 import 'package:ai_food_recognizer_app/widgets/recipe_tab.dart';
+import 'package:ai_food_recognizer_app/api/gemini_api_service.dart';
 
 class ResultScreen extends StatelessWidget {
   final File imageFile;
@@ -113,6 +114,9 @@ class ResultScreen extends StatelessWidget {
                           ),
                         ),
                       ),
+                      
+                      // Tambahkan deskripsi makanan dari Gemini
+                      FoodDescription(foodName: prediction.label),
                     ],
                   ),
                 ),
@@ -172,5 +176,89 @@ class _SliverTabBarDelegate extends SliverPersistentHeaderDelegate {
   @override
   bool shouldRebuild(_SliverTabBarDelegate oldDelegate) {
     return false;
+  }
+}
+
+// FoodDescription Widget yang menggunakan Gemini API
+class FoodDescription extends StatefulWidget {
+  final String foodName;
+
+  const FoodDescription({super.key, required this.foodName});
+
+  @override
+  State<FoodDescription> createState() => _FoodDescriptionState();
+}
+
+class _FoodDescriptionState extends State<FoodDescription> {
+  final GeminiApiService _geminiService = GeminiApiService();
+  String? _description;
+  bool _isLoading = true;
+  
+  @override
+  void initState() {
+    super.initState();
+    _loadDescription();
+  }
+  
+  Future<void> _loadDescription() async {
+    try {
+      final description = await _geminiService.getFoodDescription(widget.foodName);
+      setState(() {
+        _description = description;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _description = 'Tidak dapat memuat deskripsi makanan.';
+        _isLoading = false;
+      });
+    }
+  }
+  
+  @override
+  Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.all(16.0),
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+    
+    return Card(
+      elevation: 2,
+      margin: const EdgeInsets.only(top: 16),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.description, color: Colors.orange[700]),
+                const SizedBox(width: 8),
+                Text(
+                  'Tentang Makanan Ini:',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.orange[700],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Text(
+              _description ?? 'Deskripsi tidak tersedia.',
+              style: Theme.of(context).textTheme.bodyMedium,
+              textAlign: TextAlign.justify,
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }

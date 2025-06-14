@@ -9,41 +9,62 @@ class ModelLabelExtractor {
       final ByteData data = await rootBundle.load(modelPath);
       final Uint8List bytes = data.buffer.asUint8List();
 
-      // Try to find embedded labels in the model file
-      // TFLite models often embed metadata including labels
-      List<String> labels = [];
-
-      // Look for common patterns in TFLite files that indicate labels
-      String fileContent = String.fromCharCodes(
-          bytes, 0, bytes.length > 10000 ? 10000 : bytes.length);
-
-      // Try to find labels by looking for food-related keywords
-      // This is a heuristic approach - may need adjustment based on actual model structure
-      final patterns = [
-        'pizza',
-        'burger',
-        'salad',
-        'soup',
-        'rice',
-        'noodles',
-        'bread',
-        'chicken',
-        'beef',
-        'fish',
-        'egg',
-        'milk',
-        'cheese',
-        'fruit',
-        'vegetable',
-        'cake',
-        'cookie',
-        'ice cream',
-        'coffee',
-        'tea'
-      ];
-
-      // For now, return null to indicate we should use a predefined list
-      // In a real implementation, you would parse the TFLite metadata
+      // Untuk metode implementasi yang lebih baik, kita akan mencoba mengekstrak label
+      // yang tertanam dalam model TFLite
+      
+      // Pendekatan 1: Coba temukan label dalam association files
+      try {
+        // Check jika ada file label.txt yang menyertai model
+        final String labelPath = modelPath.replaceAll('.tflite', '_labels.txt');
+        final String labelsContent = await rootBundle.loadString(labelPath);
+        
+        if (labelsContent.isNotEmpty) {
+          final List<String> extractedLabels = labelsContent
+              .split('\n')
+              .where((label) => label.trim().isNotEmpty)
+              .toList();
+          
+          if (extractedLabels.isNotEmpty) {
+            print('Berhasil mengekstrak ${extractedLabels.length} label dari file label.');
+            return extractedLabels;
+          }
+        }
+      } catch (e) {
+        print('Tidak menemukan file label terpisah: $e');
+      }
+      
+      // Pendekatan 2: Coba cari metadata dalam file TFLite
+      // TFLite models sering menyimpan metadata termasuk label
+      try {
+        // Cari pola teks dalam file binary untuk menemukan label
+        String fileContent = String.fromCharCodes(
+            bytes, 0, bytes.length > 50000 ? 50000 : bytes.length);
+            
+        // Cari bagian yang mungkin berisi label (biasanya JSON atau teks plain)
+        RegExp labelSectionRegex = RegExp(r'(\w+)(,|\s+)(\w+)(,|\s+)');
+        final matches = labelSectionRegex.allMatches(fileContent);
+        
+        if (matches.length > 20) {
+          // Jika menemukan banyak match, mungkin itu adalah label
+          List<String> potentialLabels = [];
+          for (final match in matches) {
+            String label = match.group(0)?.trim() ?? '';
+            if (label.length > 2 && !potentialLabels.contains(label)) {
+              potentialLabels.add(label);
+            }
+          }
+          
+          if (potentialLabels.length > 100) {
+            print('Berhasil mengekstrak ${potentialLabels.length} label dari metadata model.');
+            return potentialLabels.take(2024).toList(); // Ambil maksimal 2024 label
+          }
+        }
+      } catch (e) {
+        print('Error saat mencari metadata dalam model: $e');
+      }
+      
+      // Jika pendekatan di atas gagal, gunakan daftar predefined
+      print('Tidak menemukan label dalam model, menggunakan daftar predefined.');
       return null;
     } catch (e) {
       print('Error extracting labels from TFLite model: $e');

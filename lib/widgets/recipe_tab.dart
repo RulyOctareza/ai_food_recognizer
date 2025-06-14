@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:ai_food_recognizer_app/models/recipe_model.dart';
 import 'package:ai_food_recognizer_app/api/mealdb_api_service.dart';
+import 'package:ai_food_recognizer_app/api/gemini_api_service.dart';
 
 class RecipeTab extends StatefulWidget {
   final String foodName;
@@ -13,9 +14,11 @@ class RecipeTab extends StatefulWidget {
 
 class _RecipeTabState extends State<RecipeTab> {
   final MealDbApiService _mealDbService = MealDbApiService();
+  final GeminiApiService _geminiService = GeminiApiService();
   List<RecipeModel>? _recipes;
   bool _isLoading = true;
   String? _errorMessage;
+  String? _enhancedFoodName;
 
   @override
   void initState() {
@@ -30,13 +33,36 @@ class _RecipeTabState extends State<RecipeTab> {
     });
 
     try {
-      final recipes = await _mealDbService.searchRecipesByName(widget.foodName);
+      // Pertama, coba dapatkan nama makanan yang lebih baik dari Gemini
+      String searchQuery = widget.foodName;
+      
+      try {
+        // Gunakan Gemini untuk mendapatkan nama makanan yang lebih standar untuk pencarian resep
+        final enhancedName = await _geminiService.getEnhancedFoodNameForRecipe(widget.foodName);
+        if (enhancedName != null && enhancedName.isNotEmpty) {
+          searchQuery = enhancedName;
+          _enhancedFoodName = enhancedName;
+        }
+      } catch (e) {
+        print('Gagal mendapatkan nama makanan yang ditingkatkan: $e');
+        // Lanjutkan dengan nama asli
+      }
+
+      // Cari resep menggunakan MealDB API
+      List<RecipeModel>? recipes;
+      
+      // Gunakan method yang lebih baik untuk pencarian resep
+      if (_enhancedFoodName != null) {
+        recipes = await _mealDbService.searchRecipesByGeminiFoodName(_enhancedFoodName!);
+      } else {
+        recipes = await _mealDbService.searchRecipesByName(searchQuery);
+      }
       
       setState(() {
         _recipes = recipes;
         _isLoading = false;
         if (recipes == null || recipes.isEmpty) {
-          _errorMessage = 'Tidak ada resep ditemukan';
+          _errorMessage = 'Tidak ada resep ditemukan untuk "$searchQuery"';
         }
       });
     } catch (e) {

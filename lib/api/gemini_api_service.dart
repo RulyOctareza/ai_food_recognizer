@@ -7,7 +7,8 @@ class GeminiApiService {
 
   GeminiApiService() {
     _model = GenerativeModel(
-      model: 'gemini-1.5-flash', // Ganti ke model yang tersedia
+      model: 'gemini-2.5-pro', // Most capable current model
+ 
       apiKey: _apiKey,
     );
   }
@@ -74,6 +75,57 @@ Maksimal 3 paragraf.
       return response.text;
     } catch (e) {
       print('Error saat mendapatkan deskripsi makanan: $e');
+      return null;
+    }
+  }
+
+  Future<String?> getEnhancedFoodNameForRecipe(String foodName) async {
+    try {
+      final prompt = '''
+Berikan nama makanan yang lebih standar dan internasional untuk "$foodName" yang cocok untuk pencarian resep dalam bahasa Inggris.
+
+Aturan:
+1. Jika makanan Indonesia, berikan nama dalam bahasa Inggris yang umum digunakan
+2. Jika sudah dalam bahasa Inggris, perbaiki ejaan dan standarisasi
+3. Gunakan nama yang paling umum digunakan dalam resep internasional
+4. Fokus pada nama makanan utama, bukan deskripsi panjang
+5. Maksimal 2-3 kata
+
+Contoh:
+- "Nasi Goreng" → "Fried Rice"
+- "Rendang" → "Beef Rendang" 
+- "Gado-gado" → "Indonesian Salad"
+- "Chicken curry" → "Chicken Curry"
+- "Pizza margherita" → "Margherita Pizza"
+
+Jawab HANYA nama makanan yang diminta, tanpa penjelasan tambahan.
+
+Makanan: "$foodName"
+Jawaban:''';
+
+      final content = [Content.text(prompt)];
+      final response = await _model.generateContent(content);
+
+      if (response.text != null && response.text!.isNotEmpty) {
+        // Bersihkan respons dari whitespace dan karakter yang tidak perlu
+        String cleanedName = response.text!.trim();
+        
+        // Hapus tanda petik jika ada
+        cleanedName = cleanedName.replaceAll('"', '').replaceAll("'", '');
+        
+        // Pastikan tidak terlalu panjang
+        if (cleanedName.split(' ').length <= 4 && cleanedName.length <= 50) {
+          print('Nama makanan yang ditingkatkan: "$foodName" → "$cleanedName"');
+          return cleanedName;
+        } else {
+          print('Nama makanan terlalu panjang, gunakan nama asli');
+          return null;
+        }
+      }
+      
+      return null;
+    } catch (e) {
+      print('Error saat mendapatkan nama makanan yang ditingkatkan: $e');
       return null;
     }
   }
