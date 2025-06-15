@@ -19,13 +19,20 @@ class TfliteService {
   static const int _inputSize = 192; // Ubah sesuai dengan model: 192x192
   static const int _numClasses = 2024; // Ubah sesuai dengan output model: 2024
 
-  Future<void> loadModel() async {
-    if (_modelLoaded) return;
+  Future<bool> loadModel() async {
+    if (_modelLoaded) return true;
     try {
       print('Memuat model TFLite...');
 
-      // Dapatkan path model dari Firebase ML Service
-      String? modelPath = await _firebaseMlService.getModelPath();
+      // Dapatkan path model dari Firebase ML Service dengan timeout
+      String? modelPath;
+      try {
+        modelPath = await _firebaseMlService.getModelPath()
+            .timeout(const Duration(seconds: 15));
+      } catch (e) {
+        print('Timeout saat mendapatkan model path: $e');
+        modelPath = null;
+      }
       
       if (modelPath == null) {
         print('Gagal mendapatkan model path, menggunakan model dari assets');
@@ -34,52 +41,114 @@ class TfliteService {
         print('Menggunakan model dari: $modelPath');
       }
 
-      // Coba ekstrak label dari model, jika gagal gunakan label default
-      _labels = await ModelLabelExtractor.extractLabelsFromTflite(modelPath);
-      if (_labels == null) {
-        // Gunakan label yang lebih spesifik dari ModelLabelExtractor
+      // Load labels dari file-file label di assets
+      print('Memuat label dari files yang disediakan...');
+      try {
+        _labels = await ModelLabelExtractor.extractLabelsFromTflite(modelPath);
+        if (_labels != null) {
+          print('Label berhasil dimuat dari file label');
+        } else {
+          print('Gagal memuat label dari file yang disediakan, menggunakan label default');
+          _labels = ModelLabelExtractor.getFoodLabels2024();
+        }
+      } catch (e) {
+        print('Error saat mengekstrak label: $e');
         _labels = ModelLabelExtractor.getFoodLabels2024();
-        if (_labels!.length > _numClasses) {
-          _labels = _labels!.take(_numClasses).toList();
-        } else if (_labels!.length < _numClasses) {
-          // Tambahkan label generic jika kurang
-          while (_labels!.length < _numClasses) {
-            _labels!.add('Unknown Food ${_labels!.length + 1}');
-          }
+      }
+      
+      // Pastikan jumlah label sesuai dengan output model
+      if (_labels!.length > _numClasses) {
+        print('Jumlah label (${_labels!.length}) melebihi jumlah kelas ($_numClasses), memotong ke $_numClasses');
+        _labels = _labels!.take(_numClasses).toList();
+      } else if (_labels!.length < _numClasses) {
+        // Tambahkan label generik jika kurang
+        print('Jumlah label (${_labels!.length}) kurang dari jumlah kelas ($_numClasses), menambah label generik');
+        final initialLength = _labels!.length;
+        for (int i = initialLength; i < _numClasses; i++) {
+          _labels!.add('Unknown Food ${i + 1}');
         }
       }
       print('Jumlah label yang dimuat: ${_labels?.length}');
 
-      // Memuat model dengan opsi yang lebih spesifik
+      // Setup interpreter options
       final options = InterpreterOptions()..threads = 4;
       
-      // Load model berdasarkan apakah dari Firebase ML atau assets
-      if (modelPath == _modelAsset) {
-        _interpreter = await Interpreter.fromAsset(modelPath, options: options);
-      } else {
-        _interpreter = await Interpreter.fromFile(File(modelPath), options: options);
+      // Load model with proper error handling
+      try {
+        bool modelLoaded = false;
+        String errorMessage = '';
+        
+        // First try: Use the provided path
+        try {
+          if (modelPath == _modelAsset) {
+            _interpreter = await Interpreter.fromAsset(modelPath, options: options);
+            modelLoaded = true;
+          } else {
+            final modelFile = File(modelPath);
+            if (await modelFile.exists()) {
+              _interpreter = await Interpreter.fromFile(modelFile, options: options);
+              modelLoaded = true;
+            } else {
+              errorMessage = 'File model tidak ditemukan pada path: $modelPath';
+            }
+          }
+        } catch (e) {
+          errorMessage = 'Error loading model from $modelPath: $e';
+        }
+        
+        // Second try: Fallback to asset if the first attempt failed
+        if (!modelLoaded) {
+          print(errorMessage);
+          print('Mencoba fallback ke asset...');
+          try {
+            _interpreter = await Interpreter.fromAsset(_modelAsset, options: options);
+            modelLoaded = true;
+          } catch (e) {
+            print('Error loading model from asset: $e');
+            throw Exception('Failed to load model from any source: $errorMessage | Asset error: $e');
+          }
+        }
+
+        if (modelLoaded && _interpreter != null) {
+          print('Model berhasil dimuat. Input tensor shape: ${_interpreter!.getInputTensor(0).shape}');
+          print('Output tensor shape: ${_interpreter!.getOutputTensor(0).shape}');
+
+          _interpreter!.allocateTensors();
+          _modelLoaded = true;
+          print('Model TFLite berhasil dimuat dan tensor dialokasikan.');
+          return true;
+        } else {
+          print('Interpreter kosong setelah semua upaya memuat model.');
+          return false;
+        }
+      } catch (e) {
+        print('Error saat memuat interpreter: $e');
+        throw e; // Re-throw to be caught by outer catch
       }
-
-      print(
-          'Model berhasil dimuat. Input tensor shape: ${_interpreter?.getInputTensor(0).shape}');
-      print('Output tensor shape: ${_interpreter?.getOutputTensor(0).shape}');
-
-      _interpreter?.allocateTensors();
-      _modelLoaded = true;
-      print('Model TFLite berhasil dimuat dan tensor dialokasikan.');
     } catch (e, stackTrace) {
       print('Gagal memuat model TFLite: $e');
       print('Stack trace: $stackTrace');
       _modelLoaded = false;
+      return false;
     }
   }
 
   Future<PredictionModel?> predictImage(File imageFile) async {
     if (!_modelLoaded || _interpreter == null) {
       print('Model belum dimuat. Panggil loadModel() terlebih dahulu.');
-      await loadModel();
+      
+      // Retry loading with up to 2 attempts
+      int attempts = 0;
+      while (!_modelLoaded && attempts < 2) {
+        attempts++;
+        print('Percobaan memuat model #$attempts');
+        bool success = await loadModel();
+        if (success) break;
+        await Future.delayed(const Duration(milliseconds: 500)); // Short delay between attempts
+      }
+      
       if (!_modelLoaded || _interpreter == null) {
-        print('Gagal memuat model setelah percobaan kedua.');
+        print('Gagal memuat model setelah $attempts percobaan.');
         return null;
       }
     }
@@ -159,17 +228,45 @@ class TfliteService {
       print(
           'Indeks terbaik: $bestLabelIndex, Kepercayaan normalized: $highestConfidence');
 
-      if (bestLabelIndex != -1 &&
-          _labels != null &&
-          bestLabelIndex < _labels!.length) {
+      if (bestLabelIndex != -1) {
         // Pastikan confidence adalah nilai antara 0 dan 1
         double confidenceScore = highestConfidence.clamp(0.0, 1.0);
+        
+        String foodLabel;
+        if (_labels != null && bestLabelIndex < _labels!.length) {
+          // Get the raw label from our list
+          String rawLabel = _labels![bestLabelIndex];
+          
+          // If the label appears to be a Knowledge Graph ID (starts with /g/ or is __background__),
+          // attempt to get a more readable label
+          if (rawLabel.startsWith('/g/') || rawLabel.startsWith('__')) {
+            try {
+              // Try to use the English label file for better human-readable labels
+              String betterLabel = ModelLabelExtractor.cleanupLabelId(rawLabel);
+              // Check if still using raw ID, try to find a proper name from label-en.txt
+              if (betterLabel == rawLabel) {
+                foodLabel = await ModelLabelExtractor.loadLabelFromIndexAsync(bestLabelIndex);
+              } else {
+                foodLabel = betterLabel;
+              }
+            } catch (e) {
+              print('Error getting better label: $e');
+              foodLabel = rawLabel; // Fallback to raw label
+            }
+          } else {
+            foodLabel = rawLabel; // Already human-readable
+          }
+        } else {
+          // If we don't have a label list or index is out of bounds
+          foodLabel = 'Unknown Food ($bestLabelIndex)';
+        }
+        
         return PredictionModel(
-            label: _labels![bestLabelIndex], 
+            label: foodLabel, 
             confidence: confidenceScore,
             index: bestLabelIndex);
       } else {
-        print('Gagal menemukan label yang valid atau _labels null.');
+        print('Gagal menemukan indeks label terbaik.');
         return PredictionModel(
             label: "Tidak Dikenali", 
             confidence: 0.0,

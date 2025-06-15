@@ -7,8 +7,7 @@ class GeminiApiService {
 
   GeminiApiService() {
     _model = GenerativeModel(
-      model: 'gemini-2.5-pro', // Most capable current model
- 
+      model: 'gemini-2.0-flash', // Ganti ke model yang tersedia
       apiKey: _apiKey,
     );
   }
@@ -81,7 +80,42 @@ Maksimal 3 paragraf.
 
   Future<String?> getEnhancedFoodNameForRecipe(String foodName) async {
     try {
-      final prompt = '''
+      // Jika foodName adalah Knowledge Graph ID atau label khusus, gunakan prompt khusus
+      String prompt;
+      
+      if (foodName.startsWith('/g/')) {
+        prompt = '''
+Ubah ID Knowledge Graph "$foodName" menjadi nama makanan yang standar dan internasional untuk pencarian resep dalam bahasa Inggris.
+
+Aturan:
+1. Knowledge Graph ID dimulai dengan /g/ dan diikuti dengan identifier
+2. ID ini mewakili jenis makanan tertentu dalam database makanan
+3. Berikan nama makanan yang umumnya dikenal secara internasional
+4. Fokus pada nama makanan utama, bukan deskripsi panjang
+5. Maksimal 2-3 kata
+
+Jawab HANYA nama makanan yang diminta, tanpa penjelasan tambahan.
+
+ID: "$foodName"
+Nama makanan:''';
+      } 
+      else if (foodName.startsWith('__')) {
+        prompt = '''
+Ubah label khusus model AI "$foodName" menjadi nama makanan yang standar untuk pencarian resep dalam bahasa Inggris.
+
+Aturan:
+1. Jika ini adalah __background__ atau label non-makanan, berikan kategori makanan umum
+2. Jika ini adalah label makanan khusus, ubah ke nama makanan standar
+3. Gunakan nama yang paling umum digunakan dalam resep internasional
+4. Maksimal 2-3 kata
+
+Jawab HANYA nama makanan yang diminta, tanpa penjelasan tambahan.
+
+Label: "$foodName" 
+Nama makanan:''';
+      }
+      else {
+        prompt = '''
 Berikan nama makanan yang lebih standar dan internasional untuk "$foodName" yang cocok untuk pencarian resep dalam bahasa Inggris.
 
 Aturan:
@@ -102,6 +136,7 @@ Jawab HANYA nama makanan yang diminta, tanpa penjelasan tambahan.
 
 Makanan: "$foodName"
 Jawaban:''';
+      }
 
       final content = [Content.text(prompt)];
       final response = await _model.generateContent(content);
@@ -109,10 +144,10 @@ Jawaban:''';
       if (response.text != null && response.text!.isNotEmpty) {
         // Bersihkan respons dari whitespace dan karakter yang tidak perlu
         String cleanedName = response.text!.trim();
-        
+
         // Hapus tanda petik jika ada
         cleanedName = cleanedName.replaceAll('"', '').replaceAll("'", '');
-        
+
         // Pastikan tidak terlalu panjang
         if (cleanedName.split(' ').length <= 4 && cleanedName.length <= 50) {
           print('Nama makanan yang ditingkatkan: "$foodName" → "$cleanedName"');
@@ -122,7 +157,7 @@ Jawaban:''';
           return null;
         }
       }
-      
+
       return null;
     } catch (e) {
       print('Error saat mendapatkan nama makanan yang ditingkatkan: $e');

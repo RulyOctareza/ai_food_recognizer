@@ -3,20 +3,78 @@ import 'dart:typed_data';
 import 'package:flutter/services.dart';
 
 class ModelLabelExtractor {
+  /// Constant paths for label files
+  static const String _labelPath1 = 'assets/ML/labels_1.txt';
+  static const String _labelPathEn = 'assets/ML/labels-en.txt';
+  
   static Future<List<String>?> extractLabelsFromTflite(String modelPath) async {
     try {
-      // Load the TFLite model as bytes
-      final ByteData data = await rootBundle.load(modelPath);
-      final Uint8List bytes = data.buffer.asUint8List();
-
-      // Untuk metode implementasi yang lebih baik, kita akan mencoba mengekstrak label
-      // yang tertanam dalam model TFLite
+      print('Mencoba mengekstrak label dari file-file label yang tersedia...');
       
-      // Pendekatan 1: Coba temukan label dalam association files
+      // First try to load the English human-readable labels
+      try {
+        print('Mencoba memuat label dari file labels-en.txt');
+        final labelsContent = await rootBundle.loadString(_labelPathEn);
+        if (labelsContent.isNotEmpty) {
+          final List<String> extractedLabels = labelsContent
+              .split('\n')
+              .where((label) => label.trim().isNotEmpty)
+              .toList();
+          
+          if (extractedLabels.isNotEmpty) {
+            print('Berhasil mengekstrak ${extractedLabels.length} label dari labels-en.txt');
+            return extractedLabels;
+          }
+        }
+      } catch (e) {
+        print('Gagal memuat labels-en.txt: $e');
+      }
+      
+      // If English labels failed, try the second label file
+      try {
+        print('Mencoba memuat label dari file labels_1.txt');
+        final labelsContent = await rootBundle.loadString(_labelPath1);
+        if (labelsContent.isNotEmpty) {
+          final List<String> extractedLabels = labelsContent
+              .split('\n')
+              .where((label) => label.trim().isNotEmpty)
+              .toList();
+          
+          if (extractedLabels.isNotEmpty) {
+            print('Berhasil mengekstrak ${extractedLabels.length} label dari labels_1.txt');
+            return extractedLabels;
+          }
+        }
+      } catch (e) {
+        print('Gagal memuat labels_1.txt: $e');
+      }
+      
+      // If both dedicated label files failed, try the old approach with model-associated label file
       try {
         // Check jika ada file label.txt yang menyertai model
-        final String labelPath = modelPath.replaceAll('.tflite', '_labels.txt');
-        final String labelsContent = await rootBundle.loadString(labelPath);
+        String labelPath;
+        if (modelPath.startsWith('assets/')) {
+          labelPath = modelPath.replaceAll('.tflite', '_labels.txt');
+        } else {
+          labelPath = '$modelPath.labels.txt'; // For files in device storage
+        }
+        
+        String labelsContent;
+        try {
+          labelsContent = await rootBundle.loadString(labelPath);
+        } catch (e) {
+          // If asset loading failed and it's a file path, try to read from file
+          if (!modelPath.startsWith('assets/')) {
+            final labelFile = File(labelPath);
+            if (await labelFile.exists()) {
+              labelsContent = await labelFile.readAsString();
+            } else {
+              throw Exception('Label file not found');
+            }
+          } else {
+            throw e;
+          }
+        }
         
         if (labelsContent.isNotEmpty) {
           final List<String> extractedLabels = labelsContent
@@ -33,45 +91,16 @@ class ModelLabelExtractor {
         print('Tidak menemukan file label terpisah: $e');
       }
       
-      // Pendekatan 2: Coba cari metadata dalam file TFLite
-      // TFLite models sering menyimpan metadata termasuk label
-      try {
-        // Cari pola teks dalam file binary untuk menemukan label
-        String fileContent = String.fromCharCodes(
-            bytes, 0, bytes.length > 50000 ? 50000 : bytes.length);
-            
-        // Cari bagian yang mungkin berisi label (biasanya JSON atau teks plain)
-        RegExp labelSectionRegex = RegExp(r'(\w+)(,|\s+)(\w+)(,|\s+)');
-        final matches = labelSectionRegex.allMatches(fileContent);
-        
-        if (matches.length > 20) {
-          // Jika menemukan banyak match, mungkin itu adalah label
-          List<String> potentialLabels = [];
-          for (final match in matches) {
-            String label = match.group(0)?.trim() ?? '';
-            if (label.length > 2 && !potentialLabels.contains(label)) {
-              potentialLabels.add(label);
-            }
-          }
-          
-          if (potentialLabels.length > 100) {
-            print('Berhasil mengekstrak ${potentialLabels.length} label dari metadata model.');
-            return potentialLabels.take(2024).toList(); // Ambil maksimal 2024 label
-          }
-        }
-      } catch (e) {
-        print('Error saat mencari metadata dalam model: $e');
-      }
-      
-      // Jika pendekatan di atas gagal, gunakan daftar predefined
-      print('Tidak menemukan label dalam model, menggunakan daftar predefined.');
-      return null;
+      // If all approaches failed, use default labels
+      print('Semua pendekatan ekstraksi label gagal, menggunakan label default');
+      return getFoodLabels2024();
     } catch (e) {
-      print('Error extracting labels from TFLite model: $e');
+      print('Error pada ekstraksi label: $e');
       return null;
     }
   }
-
+  
+  // Fungsi ini mengembalikan label default ketika file label tidak dapat dimuat
   static List<String> getFoodLabels2024() {
     // These are common food categories that might be in a 2024-class food recognition model
     // This is a comprehensive list of food items organized by categories
@@ -98,100 +127,65 @@ class ModelLabelExtractor {
       'Scrambled Eggs', 'Fried Eggs', 'Cereal', 'Oatmeal', 'Yogurt',
       'Croissant', 'Bagel', 'Toast', 'Bacon', 'Sausage',
 
-      // Soups and Stews
-      'Chicken Soup', 'Vegetable Soup', 'Tomato Soup', 'Mushroom Soup',
-      'Seafood Soup', 'Corn Soup', 'Onion Soup', 'Pumpkin Soup',
-      'Lentil Soup', 'Bean Soup', 'Miso Soup', 'Hot and Sour Soup',
-
-      // Salads
-      'Caesar Salad', 'Garden Salad', 'Greek Salad', 'Fruit Salad',
-      'Potato Salad', 'Coleslaw', 'Caprese Salad', 'Tuna Salad',
-      'Chicken Salad', 'Quinoa Salad', 'Spinach Salad', 'Kale Salad',
-
-      // Desserts
-      'Chocolate Cake', 'Vanilla Cake', 'Cheesecake', 'Apple Pie',
-      'Ice Cream', 'Cookies', 'Brownies', 'Donuts', 'Cupcakes',
-      'Tiramisu', 'Pudding', 'Jelly', 'Candy', 'Chocolate',
-
-      // Beverages
-      'Coffee', 'Tea', 'Hot Chocolate', 'Smoothie', 'Juice',
-      'Soda', 'Water', 'Milk', 'Latte', 'Cappuccino',
-
-      // Fruits
-      'Apple', 'Banana', 'Orange', 'Grape', 'Strawberry',
-      'Blueberry', 'Raspberry', 'Mango', 'Pineapple', 'Watermelon',
-      'Avocado', 'Kiwi', 'Peach', 'Pear', 'Cherry',
-
-      // Vegetables
-      'Broccoli', 'Carrot', 'Spinach', 'Lettuce', 'Tomato',
-      'Cucumber', 'Bell Pepper', 'Onion', 'Garlic', 'Potato',
-      'Sweet Potato', 'Corn', 'Peas', 'Green Beans', 'Cauliflower',
-
-      // Snacks
-      'Chips', 'Crackers', 'Nuts', 'Popcorn', 'Pretzels',
-      'Trail Mix', 'Granola Bar', 'Cheese Sticks', 'Dried Fruit',
-
-      // Fast Food
-      'French Fries', 'Onion Rings', 'Chicken Nuggets', 'Fish Burger',
-      'Veggie Burger', 'Wrap', 'Burrito', 'Taco', 'Quesadilla',
-
-      // Bread and Baked Goods
-      'White Bread', 'Whole Wheat Bread', 'Rye Bread', 'Sourdough',
-      'Baguette', 'Pita', 'Naan', 'Tortilla', 'Muffin', 'Scone',
-
-      // Dairy
-      'Cheese', 'Butter', 'Cream', 'Yogurt', 'Milk', 'Ice Cream',
-
-      // Meat and Seafood
-      'Salmon', 'Tuna', 'Shrimp', 'Crab', 'Lobster', 'Clams',
-      'Chicken Breast', 'Chicken Thigh', 'Ground Beef', 'Pork Belly',
-
-      // Rice and Grains
-      'White Rice', 'Brown Rice', 'Fried Rice', 'Rice Bowl',
-      'Quinoa', 'Barley', 'Oats', 'Wheat', 'Pasta',
-
-      // Regional Specialties
-      'Tacos', 'Enchiladas', 'Burritos', 'Falafel', 'Hummus',
-      'Shawarma', 'Kebab', 'Gyros', 'Paella', 'Risotto',
-      'Goulash', 'Schnitzel', 'Fish Curry', 'Chicken Curry',
-
-      // Additional items to reach 2024 classes
-      ..._generateAdditionalFoodItems()
+      // Default placeholder untuk sisa kelas
+      'Unknown Food', 'Generic Food Item',
     ];
   }
-
-  static List<String> _generateAdditionalFoodItems() {
-    List<String> additionalItems = [];
-
-    // Generate variations and combinations
-    final bases = ['Rice', 'Noodles', 'Pasta', 'Bread', 'Soup'];
-    final proteins = ['Chicken', 'Beef', 'Fish', 'Pork', 'Tofu', 'Egg'];
-    final styles = ['Fried', 'Grilled', 'Steamed', 'Baked', 'Boiled'];
-    final regions = [
-      'Asian',
-      'Western',
-      'Indonesian',
-      'Thai',
-      'Japanese',
-      'Chinese',
-      'Indian'
-    ];
-
-    int count = 0;
-    for (String region in regions) {
-      for (String style in styles) {
-        for (String protein in proteins) {
-          for (String base in bases) {
-            if (count < 1800) {
-              // Fill remaining slots
-              additionalItems.add('$region $style $protein $base');
-              count++;
-            }
-          }
-        }
+  
+  // Mendapatkan nama makanan yang bisa dibaca manusia dari ID label
+  static Object getHumanReadableLabel(String labelId, int classIndex) {
+    // Jika labelId dimulai dengan /g/, bisa jadi itu adalah Knowledge Graph ID
+    if (labelId.startsWith('/g/') || labelId.startsWith('__')) {
+      try {
+        // Coba ambil label dari file label-en.txt berdasarkan indeks kelas
+        return loadLabelFromIndexAsync(classIndex);
+      } catch (e) {
+        return 'Unknown Food ($classIndex)';
       }
     }
-
-    return additionalItems;
+    return labelId; // Jika labelnya sudah dalam bentuk yang bisa dibaca
+  }
+  
+  // Fungsi untuk memuat label berdasarkan indeks dari file label secara asinkron
+  static Future<String> loadLabelFromIndexAsync(int index) async {
+    try {
+      // Coba muat dari label bahasa Inggris
+      final labelsContent = await rootBundle.loadString(_labelPathEn);
+      final labels = labelsContent
+          .split('\n')
+          .where((label) => label.trim().isNotEmpty)
+          .toList();
+      
+      if (index >= 0 && index < labels.length) {
+        return labels[index];
+      }
+    } catch (e) {
+      print('Error loading label by index: $e');
+    }
+    
+    return 'Unknown Food ($index)';
+  }
+  
+  // Fungsi untuk memuat label berdasarkan indeks dari file label
+  static String loadLabelFromIndex(int index, List<String> labels) {
+    if (index >= 0 && index < labels.length) {
+      return labels[index];
+    }
+    return 'Unknown Food ($index)';
+  }
+  
+  // Fungsi utilitas untuk mengonversi berbagai format label
+  static String cleanupLabelId(String labelId) {
+    // Jika label adalah Knowledge Graph ID, hapus prefix
+    if (labelId.startsWith('/g/')) {
+      return labelId.replaceFirst('/g/', '').replaceAll('_', ' ');
+    }
+    
+    // Jika label adalah background atau placeholder, berikan nama yang lebih deskriptif
+    if (labelId == '__background__') {
+      return 'Background (Non-food)';
+    }
+    
+    return labelId;
   }
 }

@@ -36,16 +36,23 @@ class _RecipeTabState extends State<RecipeTab> {
       // Pertama, coba dapatkan nama makanan yang lebih baik dari Gemini
       String searchQuery = widget.foodName;
       
-      try {
-        // Gunakan Gemini untuk mendapatkan nama makanan yang lebih standar untuk pencarian resep
-        final enhancedName = await _geminiService.getEnhancedFoodNameForRecipe(widget.foodName);
-        if (enhancedName != null && enhancedName.isNotEmpty) {
-          searchQuery = enhancedName;
-          _enhancedFoodName = enhancedName;
+      // Check if the food name looks like a Knowledge Graph ID or is coming from labels_1.txt
+      if (widget.foodName.startsWith('/g/') || widget.foodName.startsWith('__')) {
+        print('Nama makanan terdeteksi sebagai ID, akan menggunakan Gemini untuk mencari nama yang lebih baik');
+        try {
+          // Gunakan Gemini untuk mendapatkan nama makanan yang lebih standar untuk pencarian resep
+          final enhancedName = await _geminiService.getEnhancedFoodNameForRecipe(widget.foodName);
+          if (enhancedName != null && enhancedName.isNotEmpty) {
+            searchQuery = enhancedName;
+            _enhancedFoodName = enhancedName;
+            print('Berhasil mendapatkan nama makanan yang lebih baik: $enhancedName');
+          }
+        } catch (e) {
+          print('Gagal mendapatkan nama makanan yang ditingkatkan: $e');
+          // Lanjutkan dengan nama asli
         }
-      } catch (e) {
-        print('Gagal mendapatkan nama makanan yang ditingkatkan: $e');
-        // Lanjutkan dengan nama asli
+      } else {
+        print('Menggunakan nama makanan asli untuk pencarian: $searchQuery');
       }
 
       // Cari resep menggunakan MealDB API

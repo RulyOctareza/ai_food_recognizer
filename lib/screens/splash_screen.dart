@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:ai_food_recognizer_app/screens/home_screen.dart';
 import 'package:ai_food_recognizer_app/services/tflite_service.dart';
+import 'package:ai_food_recognizer_app/utils/model_diagnostic_util.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -16,6 +17,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
   final TfliteService _tfliteService = TfliteService();
   bool _modelLoaded = false;
   bool _timerComplete = false;
+  String _loadingStatus = 'Initializing...';
   
   @override
   void initState() {
@@ -47,11 +49,76 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
   }
   
   Future<void> _loadModel() async {
-    await _tfliteService.loadModel();
-    setState(() {
-      _modelLoaded = true;
-      _checkNavigate();
-    });
+    try {
+      setState(() {
+        _loadingStatus = 'Mempersiapkan model AI...';
+      });
+      
+      // Run diagnostic before attempting to load model
+      try {
+        final diagnostics = await ModelDiagnosticUtil.runDiagnostics();
+        print(diagnostics);
+      } catch (e) {
+        print('Error running diagnostics: $e');
+      }
+      
+      // Add timeout to prevent hanging indefinitely
+      bool success = await _tfliteService.loadModel()
+          .timeout(const Duration(seconds: 20), onTimeout: () {
+        print('Timeout saat memuat model TFLite');
+        return false;
+      });
+      
+      setState(() {
+        _loadingStatus = success ? 'Model berhasil dimuat!' : 'Gagal memuat model';
+        _modelLoaded = success;
+        
+        if (!success) {
+          // Even if model failed to load, we should proceed after a delay
+          print('Model gagal dimuat, tapi aplikasi akan tetap dilanjutkan');
+          
+          // Show a message that we're continuing anyway
+          Future.delayed(const Duration(seconds: 1), () {
+            setState(() {
+              _loadingStatus = 'Melanjutkan tanpa model...';
+            });
+            
+            // Run diagnostic again to determine the cause of failure
+            ModelDiagnosticUtil.runDiagnostics().then((diagnostics) {
+              print('Post-failure diagnostics:\n$diagnostics');
+            });
+            
+            Future.delayed(const Duration(seconds: 2), () {
+              setState(() {
+                _modelLoaded = true; // Force proceed
+                _checkNavigate();
+              });
+            });
+          });
+        } else {
+          _checkNavigate();
+        }
+      });
+    } catch (e) {
+      print('Error saat memuat model: $e');
+      setState(() {
+        _loadingStatus = 'Error: $e';
+      });
+      
+      // Run diagnostic to determine the cause of the error
+      ModelDiagnosticUtil.runDiagnostics().then((diagnostics) {
+        print('Error diagnostics:\n$diagnostics');
+      });
+      
+      // Proceed anyway after error
+      Future.delayed(const Duration(seconds: 2), () {
+        setState(() {
+          _loadingStatus = 'Melanjutkan tanpa model...';
+          _modelLoaded = true; // Force proceed
+          _checkNavigate();
+        });
+      });
+    }
   }
   
   void _checkNavigate() {
@@ -114,13 +181,14 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
               ),
             ),
             const SizedBox(height: 20),
-            const CircularProgressIndicator(
+            CircularProgressIndicator(
               valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
             ),
             const SizedBox(height: 20),
-            const Text(
-              'Memuat model AI...',
-              style: TextStyle(
+            Text(
+              _loadingStatus,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
                 color: Colors.white,
                 fontSize: 16,
               ),

@@ -5,30 +5,40 @@ import 'package:path_provider/path_provider.dart';
 
 class FirebaseMlService {
   static const String _modelName = 'food-recognizer';
-  static const String _localModelPath = 'assets/ML/food-reconizer.tflite';
+  static const String _localModelPath = 'assets/ML/food-reconizer.tflite'; // Matches the actual filename
   
   // Download model dari Firebase ML
   Future<String?> downloadModel() async {
     try {
       print('Mencoba mendownload model dari Firebase ML...');
       
-      final model = await FirebaseModelDownloader.instance.getModel(
-        _modelName,
-        FirebaseModelDownloadType.latestModel,
-        FirebaseModelDownloadConditions(
-          androidChargingRequired: false,
-          androidWifiRequired: false,
-          androidDeviceIdleRequired: false,
-        ),
-      );
-      
-      if (model != null) {
-        print('Model berhasil didownload: ${model.file.path}');
-        return model.file.path;
-      } else {
-        print('Gagal mendownload model dari Firebase ML');
+      FirebaseCustomModel? model;
+      try {
+        model = await FirebaseModelDownloader.instance.getModel(
+          _modelName,
+          FirebaseModelDownloadType.latestModel,
+          FirebaseModelDownloadConditions(
+            androidChargingRequired: false,
+            androidWifiRequired: false,
+            androidDeviceIdleRequired: false,
+          ),
+        ).timeout(const Duration(seconds: 10));
+      } catch (e) {
+        print('Timeout atau error saat mendownload model: $e');
         return null;
       }
+      
+      if (model != null) {
+        final file = model.file;
+        if (await file.exists()) {
+          print('Model berhasil didownload: ${file.path}');
+          return file.path;
+        } else {
+          print('File model tidak ditemukan setelah download');
+        }
+      }
+      
+      return null;
     } catch (e) {
       print('Error saat mendownload model dari Firebase ML: $e');
       return null;
@@ -38,19 +48,32 @@ class FirebaseMlService {
   // Cek apakah model sudah ada di cache lokal
   Future<String?> getCachedModel() async {
     try {
-      final model = await FirebaseModelDownloader.instance.getModel(
-        _modelName,
-        FirebaseModelDownloadType.localModelUpdateInBackground,
-        FirebaseModelDownloadConditions(
-          androidChargingRequired: false,
-          androidWifiRequired: false,
-          androidDeviceIdleRequired: false,
-        ),
-      );
+      print('Memeriksa model di cache...');
+      FirebaseCustomModel? model;
       
-      if (model != null && await model.file.exists()) {
-        print('Model ditemukan di cache: ${model.file.path}');
-        return model.file.path;
+      try {
+        model = await FirebaseModelDownloader.instance.getModel(
+          _modelName,
+          FirebaseModelDownloadType.localModelUpdateInBackground,
+          FirebaseModelDownloadConditions(
+            androidChargingRequired: false,
+            androidWifiRequired: false,
+            androidDeviceIdleRequired: false,
+          ),
+        ).timeout(const Duration(seconds: 5));
+      } catch (e) {
+        print('Timeout atau error saat memeriksa cache: $e');
+        return null;
+      }
+      
+      if (model != null) {
+        final file = model.file;
+        if (await file.exists()) {
+          print('Model ditemukan di cache: ${file.path}');
+          return file.path;
+        } else {
+          print('File model cache tidak ditemukan');
+        }
       }
       
       return null;
@@ -74,41 +97,54 @@ class FirebaseMlService {
         return localModelFile.path;
       }
       
-      // Copy dari assets ke directory aplikasi
-      final byteData = await rootBundle.load(_localModelPath);
-      final bytes = byteData.buffer.asUint8List();
-      
-      await localModelFile.writeAsBytes(bytes);
-      print('Model lokal berhasil dicopy: ${localModelFile.path}');
-      
-      return localModelFile.path;
+      try {
+        // Copy dari assets ke directory aplikasi
+        final byteData = await rootBundle.load(_localModelPath);
+        final bytes = byteData.buffer.asUint8List();
+        
+        await localModelFile.writeAsBytes(bytes);
+        print('Model lokal berhasil dicopy: ${localModelFile.path}');
+        
+        return localModelFile.path;
+      } catch (e) {
+        print('Error saat menyalin model dari assets: $e');
+        // Jika gagal menyalin, coba langsung gunakan path assets
+        return _localModelPath;
+      }
     } catch (e) {
       print('Error saat mengakses model lokal: $e');
-      return null;
+      // Fallback ke direct assets path sebagai last resort
+      return _localModelPath;
     }
   }
   
   // Method utama untuk mendapatkan path model
   Future<String?> getModelPath() async {
+    print('Memulai proses mendapatkan model path...');
+    
     // 1. Coba cek cache terlebih dahulu
     String? modelPath = await getCachedModel();
     if (modelPath != null) {
+      print('Menggunakan model dari cache');
       return modelPath;
     }
     
     // 2. Coba download dari Firebase ML
     modelPath = await downloadModel();
     if (modelPath != null) {
+      print('Menggunakan model yang baru didownload');
       return modelPath;
     }
     
     // 3. Fallback ke model lokal
+    print('Fallback ke model lokal');
     modelPath = await getLocalModel();
     if (modelPath != null) {
+      print('Menggunakan model lokal: $modelPath');
       return modelPath;
     }
     
-    print('Tidak dapat mendapatkan model dari manapun!');
+    print('KRITIS: Tidak dapat mendapatkan model dari manapun!');
     return null;
   }
   
