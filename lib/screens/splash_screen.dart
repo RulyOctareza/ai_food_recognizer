@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:ai_food_recognizer_app/screens/home_screen.dart';
 import 'package:ai_food_recognizer_app/services/tflite_service.dart';
 import 'package:ai_food_recognizer_app/utils/model_diagnostic_util.dart';
+import 'package:ai_food_recognizer_app/utils/env_validator.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -28,6 +29,11 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
       duration: const Duration(seconds: 2),
       vsync: this,
     );
+    
+    // Validasi environment variables
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      EnvValidator.validateEnv(context);
+    });
     
     _animation = CurvedAnimation(
       parent: _animationController,

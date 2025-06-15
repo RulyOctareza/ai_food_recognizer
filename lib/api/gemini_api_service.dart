@@ -1,15 +1,29 @@
 import 'package:google_generative_ai/google_generative_ai.dart';
 import 'package:ai_food_recognizer_app/models/nutrition_model.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class GeminiApiService {
-  static const String _apiKey = 'AIzaSyCTM3uyTyCFvlNTVwC-MT4ftrqHVu4_OyI';
   late final GenerativeModel _model;
 
   GeminiApiService() {
-    _model = GenerativeModel(
-      model: 'gemini-2.0-flash', // Ganti ke model yang tersedia
-      apiKey: _apiKey,
-    );
+    try {
+      // Get API key from .env file
+      final apiKey = dotenv.env['GEMINI_API_KEY'];
+      
+      // Validate API key
+      if (apiKey == null || apiKey.isEmpty || apiKey == 'your_gemini_api_key_here') {
+        print('WARNING: Gemini API key is missing or invalid in .env file');
+        throw Exception('Invalid Gemini API key configuration');
+      }
+      
+      _model = GenerativeModel(
+        model: 'gemini-2.0-flash', // Ganti ke model yang tersedia
+        apiKey: apiKey,
+      );
+    } catch (e) {
+      print('ERROR: Failed to initialize Gemini API service: $e');
+      rethrow; // Re-throw to allow proper error handling upstream
+    }
   }
 
   Future<NutritionModel?> getNutritionInfo(String foodName) async {
@@ -45,13 +59,27 @@ Berikan jawaban yang akurat dan berdasarkan data nutrisi yang valid.
       print('Mengirim permintaan ke Gemini API untuk: $foodName');
 
       final content = [Content.text(prompt)];
-      final response = await _model.generateContent(content);
+      
+      try {
+        final response = await _model.generateContent(content)
+            .timeout(const Duration(seconds: 30), onTimeout: () {
+          print('TIMEOUT: Gemini API request timed out after 30 seconds');
+          throw Exception('Gemini API request timed out');
+        });
 
-      if (response.text != null && response.text!.isNotEmpty) {
-        print('Respons Gemini API berhasil diterima');
-        return NutritionModel.fromGeminiResponse(response.text!, foodName);
-      } else {
-        print('Respons Gemini API kosong');
+        if (response.text != null && response.text!.isNotEmpty) {
+          print('Respons Gemini API berhasil diterima');
+          return NutritionModel.fromGeminiResponse(response.text!, foodName);
+        } else {
+          print('Respons Gemini API kosong');
+          return null;
+        }
+      } catch (apiError) {
+        if (apiError.toString().contains('API key')) {
+          print('ERROR: Invalid API key configuration. Check your .env file.');
+        } else {
+          print('API Error: $apiError');
+        }
         return null;
       }
     } catch (e) {
@@ -69,9 +97,23 @@ Maksimal 3 paragraf.
 ''';
 
       final content = [Content.text(prompt)];
-      final response = await _model.generateContent(content);
+      
+      try {
+        final response = await _model.generateContent(content)
+            .timeout(const Duration(seconds: 20), onTimeout: () {
+          print('TIMEOUT: Food description request timed out after 20 seconds');
+          throw Exception('Food description request timed out');
+        });
 
-      return response.text;
+        return response.text;
+      } catch (apiError) {
+        if (apiError.toString().contains('API key')) {
+          print('ERROR: Invalid API key configuration for food description');
+        } else {
+          print('API Error in food description: $apiError');
+        }
+        return null;
+      }
     } catch (e) {
       print('Error saat mendapatkan deskripsi makanan: $e');
       return null;
@@ -139,29 +181,41 @@ Jawaban:''';
       }
 
       final content = [Content.text(prompt)];
-      final response = await _model.generateContent(content);
+      
+      try {
+        final response = await _model.generateContent(content)
+            .timeout(const Duration(seconds: 15), onTimeout: () {
+          print('TIMEOUT: Enhanced food name request timed out');
+          throw Exception('Food name enhancement request timed out');
+        });
 
-      if (response.text != null && response.text!.isNotEmpty) {
-        // Bersihkan respons dari whitespace dan karakter yang tidak perlu
-        String cleanedName = response.text!.trim();
+        if (response.text != null && response.text!.isNotEmpty) {
+          // Bersihkan respons dari whitespace dan karakter yang tidak perlu
+          String cleanedName = response.text!.trim();
 
-        // Hapus tanda petik jika ada
-        cleanedName = cleanedName.replaceAll('"', '').replaceAll("'", '');
+          // Hapus tanda petik jika ada
+          cleanedName = cleanedName.replaceAll('"', '').replaceAll("'", '');
 
-        // Pastikan tidak terlalu panjang
-        if (cleanedName.split(' ').length <= 4 && cleanedName.length <= 50) {
-          print('Nama makanan yang ditingkatkan: "$foodName" → "$cleanedName"');
-          return cleanedName;
-        } else {
-          print('Nama makanan terlalu panjang, gunakan nama asli');
-          return null;
+          // Pastikan tidak terlalu panjang
+          if (cleanedName.split(' ').length <= 4 && cleanedName.length <= 50) {
+            print('Nama makanan yang ditingkatkan: "$foodName" → "$cleanedName"');
+            return cleanedName;
+          } else {
+            print('Nama makanan terlalu panjang, gunakan nama asli');
+            return foodName; // Return original food name as fallback
+          }
         }
-      }
 
-      return null;
+        return foodName; // Return original food name if response is empty
+        
+      } catch (apiError) {
+        print('API Error in enhanced food name: $apiError');
+        // Fall back to original food name
+        return foodName;
+      }
     } catch (e) {
       print('Error saat mendapatkan nama makanan yang ditingkatkan: $e');
-      return null;
+      return foodName; // Return original name as fallback
     }
   }
 }

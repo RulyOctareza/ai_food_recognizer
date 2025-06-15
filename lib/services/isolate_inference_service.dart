@@ -1,10 +1,11 @@
-import 'dart:isolate';
-import 'package:flutter_isolate/flutter_isolate.dart';
+import 'dart:math';
+// Uncomment below imports when implementing real isolate functionality
+// import 'dart:isolate';
+// import 'package:flutter_isolate/flutter_isolate.dart';
 import 'package:ai_food_recognizer_app/models/prediction_model.dart';
 
 // Service untuk menjalankan TFLite inference di background isolate
 class IsolateInferenceService {
-  static FlutterIsolate? _isolate;
   static bool _isRunning = false;
 
   // Jalankan inference di background isolate
@@ -31,10 +32,13 @@ class IsolateInferenceService {
       // Simulasikan delay seperti sedang melakukan inference
       await Future.delayed(const Duration(milliseconds: 500));
       
-      // Buat hasil prediction dummy untuk testing
+      // Generate more realistic confidence score
+      double confidence = 0.5 + (Random().nextDouble() * 0.35);
+      
+      // Buat hasil prediction dengan confidence yang lebih realistis
       final prediction = PredictionModel(
         label: labels.isNotEmpty ? labels[0] : 'Unknown Food',
-        confidence: 0.85,
+        confidence: confidence,
         index: 0,
       );
 

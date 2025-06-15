@@ -14,6 +14,21 @@ class ResultScreen extends StatelessWidget {
     required this.imageFile,
     required this.prediction,
   });
+  
+  // Helper method to get a description based on confidence level
+  String _getConfidenceDescription(double confidence) {
+    if (confidence > 0.85) {
+      return 'Sangat yakin dengan prediksi ini';
+    } else if (confidence > 0.7) {
+      return 'Yakin dengan prediksi ini';
+    } else if (confidence > 0.5) {
+      return 'Cukup yakin dengan prediksi ini';
+    } else if (confidence > 0.3) {
+      return 'Kurang yakin dengan prediksi ini';
+    } else {
+      return 'Tidak yakin dengan prediksi ini';
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -97,15 +112,66 @@ class ResultScreen extends StatelessWidget {
                                 ),
                               ),
                               const SizedBox(height: 8),
-                              Row(
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Icon(Icons.verified, color: Colors.blue[600], size: 20),
-                                  const SizedBox(width: 8),
+                                  Row(
+                                    children: [
+                                      Icon(Icons.verified, color: Colors.blue[600], size: 20),
+                                      const SizedBox(width: 8),
+                                      Text(
+                                        'Tingkat Kepercayaan: ${(prediction.confidence * 100).toStringAsFixed(1)}%',
+                                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                          color: Colors.blue[700],
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 8),
+                                  // Confidence bar visualization
+                                  Container(
+                                    width: double.infinity,
+                                    height: 8,
+                                    decoration: BoxDecoration(
+                                      color: Colors.grey[200],
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    child: FractionallySizedBox(
+                                      alignment: Alignment.centerLeft,
+                                      widthFactor: prediction.confidence,
+                                      child: Container(
+                                        decoration: BoxDecoration(
+                                          gradient: LinearGradient(
+                                            colors: [
+                                              if (prediction.confidence < 0.5)
+                                                Colors.orange
+                                              else if (prediction.confidence < 0.7)
+                                                Colors.yellow
+                                              else
+                                                Colors.green[300]!,
+                                              if (prediction.confidence < 0.5)
+                                                Colors.red
+                                              else if (prediction.confidence < 0.7)
+                                                Colors.orange
+                                              else
+                                                Colors.green,
+                                            ],
+                                          ),
+                                          borderRadius: BorderRadius.circular(10),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  // Confidence level description
                                   Text(
-                                    'Tingkat Kepercayaan: ${(prediction.confidence * 100).toStringAsFixed(1)}%',
-                                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                      color: Colors.blue[700],
-                                      fontWeight: FontWeight.w600,
+                                    _getConfidenceDescription(prediction.confidence),
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontStyle: FontStyle.italic,
+                                      color: prediction.confidence > 0.7 ? Colors.green[700] : 
+                                             prediction.confidence > 0.5 ? Colors.orange[700] : Colors.red[700],
                                     ),
                                   ),
                                 ],
