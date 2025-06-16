@@ -67,8 +67,26 @@ class _CameraScreenState extends State<CameraScreen> {
         return;
       }
 
-      // Lakukan prediksi
-      final prediction = await _tfliteService.predictImage(imageFile);
+      // Tampilkan image cropper
+      if (!mounted) return;
+      final File? croppedFile =
+          await _cameraService.cropImage(imageFile, context);
+
+      // Jika user membatalkan crop atau gagal
+      if (croppedFile == null) {
+        if (!mounted) return;
+        setState(() {
+          _isLoading = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text('Pemotongan gambar dibatalkan atau gagal')),
+        );
+        return;
+      }
+
+      // Lakukan prediksi dengan gambar yang sudah di-crop
+      final prediction = await _tfliteService.predictImage(croppedFile);
 
       if (prediction != null) {
         if (!mounted) return;
@@ -76,7 +94,7 @@ class _CameraScreenState extends State<CameraScreen> {
           context,
           MaterialPageRoute(
             builder: (context) => ResultScreen(
-              imageFile: imageFile,
+              imageFile: croppedFile,
               prediction: prediction,
             ),
           ),

@@ -1,12 +1,14 @@
 import 'dart:developer';
 import 'dart:io';
 import 'package:camera/camera.dart';
-import 'package:path_provider/path_provider.dart';
+import 'package:image_cropper/image_cropper.dart';
+import 'package:flutter/material.dart';
 
 class CameraService {
   CameraController? _controller;
   List<CameraDescription>? _cameras;
   bool _isInitialized = false;
+  final ImageCropper _cropper = ImageCropper();
 
   CameraController? get controller => _controller;
   bool get isInitialized => _isInitialized;
@@ -38,34 +40,59 @@ class CameraService {
   }
 
   Future<File?> takePicture() async {
-    if (!_isInitialized || _controller == null) {
-      log('Kamera belum diinisialisasi');
-      return null;
-    }
-
     try {
+      if (!_isInitialized || _controller == null) {
+        log('Kamera belum diinisialisasi');
+        return null;
+      }
+
       final XFile image = await _controller!.takePicture();
-
-      // Simpan ke direktori temporary
-      final Directory tempDir = await getTemporaryDirectory();
-      final String fileName =
-          'camera_${DateTime.now().millisecondsSinceEpoch}.jpg';
-      final String filePath = '${tempDir.path}/$fileName';
-
-      final File imageFile = File(image.path);
-      final File savedFile = await imageFile.copy(filePath);
-
-      log('Gambar berhasil disimpan: $filePath');
-      return savedFile;
+      return File(image.path);
     } catch (e) {
       log('Error saat mengambil gambar: $e');
       return null;
     }
   }
 
+  Future<File?> cropImage(File imageFile, BuildContext context) async {
+    try {
+      final CroppedFile? croppedFile = await _cropper.cropImage(
+        sourcePath: imageFile.path,
+        aspectRatio: const CropAspectRatio(ratioX: 1, ratioY: 1),
+        compressQuality: 90,
+        uiSettings: [
+          AndroidUiSettings(
+            toolbarTitle: 'Potong Gambar',
+            toolbarColor: Colors.green,
+            toolbarWidgetColor: Colors.white,
+            initAspectRatio: CropAspectRatioPreset.square,
+            lockAspectRatio: true,
+          ),
+          IOSUiSettings(
+            title: 'Potong Gambar',
+            aspectRatioLockEnabled: true,
+            minimumAspectRatio: 1.0,
+            aspectRatioPickerButtonHidden: true,
+          ),
+        ],
+      );
+
+      if (croppedFile != null) {
+        return File(croppedFile.path);
+      }
+    } catch (e) {
+      log('Error cropping image: $e');
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Gagal memotong gambar: $e')),
+        );
+      }
+    }
+    return null;
+  }
+
   void dispose() {
     _controller?.dispose();
     _isInitialized = false;
-    log('Camera service disposed');
   }
 }
