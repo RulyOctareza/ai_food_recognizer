@@ -178,7 +178,7 @@ Contoh:
 - "Chicken curry" → "Chicken Curry"
 - "Pizza margherita" → "Margherita Pizza"
 
-Jawab HANYA nama makanan yang diminta, tanpa penjelasan tambahan.
+Jawab HANYA nama makanan yang diminta, tanpa penjelasan tambahan dalam bahasa inggris.
 
 Makanan: "$foodName"
 Jawaban:''';
