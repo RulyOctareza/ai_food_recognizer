@@ -24,6 +24,9 @@ class _NutritionTabState extends State<NutritionTab> {
   }
 
   Future<void> _loadNutritionData() async {
+    // Cek apakah widget masih mounted sebelum setState pertama
+    if (!mounted) return;
+
     setState(() {
       _isLoading = true;
       _errorMessage = null;
@@ -31,7 +34,10 @@ class _NutritionTabState extends State<NutritionTab> {
 
     try {
       final nutrition = await _geminiService.getNutritionInfo(widget.foodName);
-      
+
+      // Cek lagi apakah widget masih mounted sebelum setState kedua
+      if (!mounted) return;
+
       setState(() {
         _nutritionData = nutrition;
         _isLoading = false;
@@ -40,6 +46,9 @@ class _NutritionTabState extends State<NutritionTab> {
         }
       });
     } catch (e) {
+      // Cek lagi apakah widget masih mounted sebelum setState ketiga
+      if (!mounted) return;
+
       setState(() {
         _isLoading = false;
         _errorMessage = 'Terjadi kesalahan: $e';
@@ -95,15 +104,15 @@ class _NutritionTabState extends State<NutritionTab> {
           Text(
             'Informasi Nutrisi',
             style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-              fontWeight: FontWeight.bold,
-              color: Colors.green[700],
-            ),
+                  fontWeight: FontWeight.bold,
+                  color: Colors.green[700],
+                ),
           ),
           Text(
             _nutritionData!.foodName,
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              color: Colors.grey[600],
-            ),
+                  color: Colors.grey[600],
+                ),
           ),
           const SizedBox(height: 20),
 
@@ -123,13 +132,18 @@ class _NutritionTabState extends State<NutritionTab> {
                     ),
                   ),
                   const Divider(thickness: 2),
-                  _buildNutritionRow('Kalori', _nutritionData!.calories, Icons.local_fire_department),
-                  _buildNutritionRow('Protein', _nutritionData!.protein, Icons.fitness_center),
-                  _buildNutritionRow('Karbohidrat', _nutritionData!.carbohydrates, Icons.grain),
-                  _buildNutritionRow('Lemak', _nutritionData!.fat, Icons.opacity),
+                  _buildNutritionRow('Kalori', _nutritionData!.calories,
+                      Icons.local_fire_department),
+                  _buildNutritionRow(
+                      'Protein', _nutritionData!.protein, Icons.fitness_center),
+                  _buildNutritionRow('Karbohidrat',
+                      _nutritionData!.carbohydrates, Icons.grain),
+                  _buildNutritionRow(
+                      'Lemak', _nutritionData!.fat, Icons.opacity),
                   _buildNutritionRow('Serat', _nutritionData!.fiber, Icons.eco),
                   _buildNutritionRow('Gula', _nutritionData!.sugar, Icons.cake),
-                  _buildNutritionRow('Natrium', _nutritionData!.sodium, Icons.scatter_plot),
+                  _buildNutritionRow(
+                      'Natrium', _nutritionData!.sodium, Icons.scatter_plot),
                 ],
               ),
             ),
@@ -142,8 +156,8 @@ class _NutritionTabState extends State<NutritionTab> {
             Text(
               'Detail Informasi',
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
+                    fontWeight: FontWeight.bold,
+                  ),
             ),
             const SizedBox(height: 8),
             Card(

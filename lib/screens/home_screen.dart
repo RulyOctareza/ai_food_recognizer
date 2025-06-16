@@ -6,6 +6,7 @@ import 'package:ai_food_recognizer_app/models/prediction_model.dart';
 import 'result_screen.dart';
 import 'camera_screen.dart';
 import 'dart:developer';
+
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -31,25 +32,29 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _pickAndProcessImage() async {
+    if (!mounted) return;
     setState(() {
       _isLoading = true;
     });
 
     File? pickedImage = await _imagePickerService.pickImageFromGallery(context);
     if (pickedImage == null) {
+      if (!mounted) return;
       setState(() {
         _isLoading = false;
       });
       return;
     }
-    if (!mounted) return; 
+
+    if (!mounted) return;
     File? croppedImage =
         await _imagePickerService.cropImage(pickedImage, context);
     if (croppedImage == null) {
+      if (!mounted) return;
       setState(() {
         _isLoading = false;
       });
-      if (!mounted) return; 
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
             content: Text('Pemotongan gambar dibatalkan atau gagal.')),
@@ -59,7 +64,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
     PredictionModel? prediction;
     try {
-      // Add timeout to prevent UI freezing
       prediction = await _tfliteService
           .predictImage(croppedImage)
           .timeout(const Duration(seconds: 15), onTimeout: () {
@@ -70,6 +74,7 @@ class _HomeScreenState extends State<HomeScreen> {
       log('Error saat melakukan prediksi: $e');
     }
 
+    if (!mounted) return;
     setState(() {
       _isLoading = false;
     });
@@ -80,13 +85,11 @@ class _HomeScreenState extends State<HomeScreen> {
         MaterialPageRoute(
           builder: (context) => ResultScreen(
             imageFile: croppedImage,
-            prediction:
-                prediction!, // Force non-null with ! operator since we already checked
+            prediction: prediction!,
           ),
         ),
       );
     } else if (mounted) {
-      // Show more detailed error message
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(

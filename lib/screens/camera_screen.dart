@@ -25,6 +25,7 @@ class _CameraScreenState extends State<CameraScreen> {
   }
 
   Future<void> _initializeServices() async {
+    if (!mounted) return;
     setState(() {
       _isLoading = true;
     });
@@ -40,6 +41,7 @@ class _CameraScreenState extends State<CameraScreen> {
       );
     }
 
+    if (!mounted) return;
     setState(() {
       _isLoading = false;
     });
@@ -48,6 +50,7 @@ class _CameraScreenState extends State<CameraScreen> {
   Future<void> _takePictureAndPredict() async {
     if (_isLoading) return;
 
+    if (!mounted) return;
     setState(() {
       _isLoading = true;
     });
@@ -68,7 +71,7 @@ class _CameraScreenState extends State<CameraScreen> {
       final prediction = await _tfliteService.predictImage(imageFile);
 
       if (prediction != null) {
-          if (!mounted) return; 
+        if (!mounted) return;
         Navigator.push(
           context,
           MaterialPageRoute(
@@ -79,13 +82,14 @@ class _CameraScreenState extends State<CameraScreen> {
           ),
         );
       } else {
-        if (!mounted) return; 
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Gagal mendapatkan prediksi makanan')),
         );
       }
     } catch (e) {
       log('Error during capture and prediction: $e');
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error: $e')),
       );

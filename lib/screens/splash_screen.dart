@@ -5,6 +5,7 @@ import 'package:ai_food_recognizer_app/services/tflite_service.dart';
 import 'package:ai_food_recognizer_app/utils/model_diagnostic_util.dart';
 import 'package:ai_food_recognizer_app/utils/env_validator.dart';
 import 'dart:developer';
+
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
 
@@ -48,6 +49,7 @@ class _SplashScreenState extends State<SplashScreen>
 
     // Pastikan splash screen muncul minimal 2.5 detik
     Timer(const Duration(milliseconds: 2500), () {
+      if (!mounted) return;
       setState(() {
         _timerComplete = true;
         _checkNavigate();
@@ -57,6 +59,7 @@ class _SplashScreenState extends State<SplashScreen>
 
   Future<void> _loadModel() async {
     try {
+      if (!mounted) return;
       setState(() {
         _loadingStatus = 'Mempersiapkan model AI...';
       });
@@ -77,6 +80,7 @@ class _SplashScreenState extends State<SplashScreen>
         return false;
       });
 
+      if (!mounted) return;
       setState(() {
         _loadingStatus =
             success ? 'Model berhasil dimuat!' : 'Gagal memuat model';
@@ -88,6 +92,7 @@ class _SplashScreenState extends State<SplashScreen>
 
           // Show a message that we're continuing anyway
           Future.delayed(const Duration(seconds: 1), () {
+            if (!mounted) return;
             setState(() {
               _loadingStatus = 'Melanjutkan tanpa model...';
             });
@@ -98,6 +103,7 @@ class _SplashScreenState extends State<SplashScreen>
             });
 
             Future.delayed(const Duration(seconds: 2), () {
+              if (!mounted) return;
               setState(() {
                 _modelLoaded = true; // Force proceed
                 _checkNavigate();
@@ -110,6 +116,7 @@ class _SplashScreenState extends State<SplashScreen>
       });
     } catch (e) {
       log('Error saat memuat model: $e');
+      if (!mounted) return;
       setState(() {
         _loadingStatus = 'Error: $e';
       });
@@ -121,6 +128,7 @@ class _SplashScreenState extends State<SplashScreen>
 
       // Proceed anyway after error
       Future.delayed(const Duration(seconds: 2), () {
+        if (!mounted) return;
         setState(() {
           _loadingStatus = 'Melanjutkan tanpa model...';
           _modelLoaded = true; // Force proceed

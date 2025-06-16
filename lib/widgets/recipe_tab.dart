@@ -69,7 +69,7 @@ class _RecipeTabState extends State<RecipeTab> {
       } else {
         recipes = await _mealDbService.searchRecipesByName(searchQuery);
       }
-
+      if (!mounted) return;
       setState(() {
         _recipes = recipes;
         _isLoading = false;
@@ -78,6 +78,7 @@ class _RecipeTabState extends State<RecipeTab> {
         }
       });
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         _isLoading = false;
         _errorMessage = 'Terjadi kesalahan: $e';
