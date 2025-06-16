@@ -1,3 +1,5 @@
+import 'dart:developer';
+
 import 'package:flutter/material.dart';
 import 'package:ai_food_recognizer_app/models/recipe_model.dart';
 import 'package:ai_food_recognizer_app/api/mealdb_api_service.dart';
@@ -35,36 +37,39 @@ class _RecipeTabState extends State<RecipeTab> {
     try {
       // Pertama, coba dapatkan nama makanan yang lebih baik dari Gemini
       String searchQuery = widget.foodName;
-      
+
       // Check if the food name looks like a Knowledge Graph ID or is coming from labels_1.txt
-      if (widget.foodName.startsWith('/g/') || widget.foodName.startsWith('__')) {
-        print('Nama makanan terdeteksi sebagai ID, akan menggunakan Gemini untuk mencari nama yang lebih baik');
+      if (widget.foodName.startsWith('/g/') ||
+          widget.foodName.startsWith('__')) {
+        log('Nama makanan terdeteksi sebagai ID, akan menggunakan Gemini untuk mencari nama yang lebih baik');
         try {
           // Gunakan Gemini untuk mendapatkan nama makanan yang lebih standar untuk pencarian resep
-          final enhancedName = await _geminiService.getEnhancedFoodNameForRecipe(widget.foodName);
+          final enhancedName = await _geminiService
+              .getEnhancedFoodNameForRecipe(widget.foodName);
           if (enhancedName != null && enhancedName.isNotEmpty) {
             searchQuery = enhancedName;
             _enhancedFoodName = enhancedName;
-            print('Berhasil mendapatkan nama makanan yang lebih baik: $enhancedName');
+            log('Berhasil mendapatkan nama makanan yang lebih baik: $enhancedName');
           }
         } catch (e) {
-          print('Gagal mendapatkan nama makanan yang ditingkatkan: $e');
+          log('Gagal mendapatkan nama makanan yang ditingkatkan: $e');
           // Lanjutkan dengan nama asli
         }
       } else {
-        print('Menggunakan nama makanan asli untuk pencarian: $searchQuery');
+        log('Menggunakan nama makanan asli untuk pencarian: $searchQuery');
       }
 
       // Cari resep menggunakan MealDB API
       List<RecipeModel>? recipes;
-      
+
       // Gunakan method yang lebih baik untuk pencarian resep
       if (_enhancedFoodName != null) {
-        recipes = await _mealDbService.searchRecipesByGeminiFoodName(_enhancedFoodName!);
+        recipes = await _mealDbService
+            .searchRecipesByGeminiFoodName(_enhancedFoodName!);
       } else {
         recipes = await _mealDbService.searchRecipesByName(searchQuery);
       }
-      
+
       setState(() {
         _recipes = recipes;
         _isLoading = false;
@@ -139,7 +144,8 @@ class _RecipeTabState extends State<RecipeTab> {
           // Recipe Image
           if (recipe.image.isNotEmpty)
             ClipRRect(
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(8)),
+              borderRadius:
+                  const BorderRadius.vertical(top: Radius.circular(8)),
               child: Image.network(
                 recipe.image,
                 height: 200,
@@ -154,7 +160,7 @@ class _RecipeTabState extends State<RecipeTab> {
                 },
               ),
             ),
-          
+
           Padding(
             padding: const EdgeInsets.all(16),
             child: Column(
@@ -169,21 +175,23 @@ class _RecipeTabState extends State<RecipeTab> {
                   ),
                 ),
                 const SizedBox(height: 8),
-                
+
                 // Category and Area
                 Row(
                   children: [
                     Icon(Icons.category, size: 16, color: Colors.grey[600]),
                     const SizedBox(width: 4),
-                    Text(recipe.category, style: TextStyle(color: Colors.grey[600])),
+                    Text(recipe.category,
+                        style: TextStyle(color: Colors.grey[600])),
                     const SizedBox(width: 16),
                     Icon(Icons.public, size: 16, color: Colors.grey[600]),
                     const SizedBox(width: 4),
-                    Text(recipe.area, style: TextStyle(color: Colors.grey[600])),
+                    Text(recipe.area,
+                        style: TextStyle(color: Colors.grey[600])),
                   ],
                 ),
                 const SizedBox(height: 16),
-                
+
                 // Ingredients
                 Text(
                   'Bahan-bahan:',
@@ -196,10 +204,10 @@ class _RecipeTabState extends State<RecipeTab> {
                 ...recipe.ingredients.asMap().entries.map((entry) {
                   int idx = entry.key;
                   String ingredient = entry.value;
-                  String measurement = idx < recipe.measurements.length 
-                      ? recipe.measurements[idx] 
+                  String measurement = idx < recipe.measurements.length
+                      ? recipe.measurements[idx]
                       : '';
-                  
+
                   return Padding(
                     padding: const EdgeInsets.only(bottom: 4),
                     child: Row(
@@ -212,7 +220,7 @@ class _RecipeTabState extends State<RecipeTab> {
                     ),
                   );
                 }).take(8), // Tampilkan maksimal 8 bahan
-                
+
                 if (recipe.ingredients.length > 8)
                   Text(
                     '... dan ${recipe.ingredients.length - 8} bahan lainnya',
@@ -221,9 +229,9 @@ class _RecipeTabState extends State<RecipeTab> {
                       fontStyle: FontStyle.italic,
                     ),
                   ),
-                
+
                 const SizedBox(height: 16),
-                
+
                 // Instructions
                 Text(
                   'Cara Memasak:',
@@ -234,22 +242,24 @@ class _RecipeTabState extends State<RecipeTab> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  recipe.instructions.length > 300 
+                  recipe.instructions.length > 300
                       ? '${recipe.instructions.substring(0, 300)}...'
                       : recipe.instructions,
                   style: const TextStyle(height: 1.5),
                 ),
-                
+
                 const SizedBox(height: 16),
-                
+
                 // Action Buttons
                 Row(
                   children: [
-                    if (recipe.youtubeUrl != null && recipe.youtubeUrl!.isNotEmpty)
+                    if (recipe.youtubeUrl != null &&
+                        recipe.youtubeUrl!.isNotEmpty)
                       Expanded(
                         child: ElevatedButton.icon(
                           onPressed: () {
-                            _showUrlDialog(context, 'YouTube Video', recipe.youtubeUrl!);
+                            _showUrlDialog(
+                                context, 'YouTube Video', recipe.youtubeUrl!);
                           },
                           icon: const Icon(Icons.play_arrow),
                           label: const Text('Video'),
@@ -259,16 +269,18 @@ class _RecipeTabState extends State<RecipeTab> {
                           ),
                         ),
                       ),
-                    
-                    if (recipe.youtubeUrl != null && recipe.youtubeUrl!.isNotEmpty &&
-                        recipe.sourceUrl != null && recipe.sourceUrl!.isNotEmpty)
+                    if (recipe.youtubeUrl != null &&
+                        recipe.youtubeUrl!.isNotEmpty &&
+                        recipe.sourceUrl != null &&
+                        recipe.sourceUrl!.isNotEmpty)
                       const SizedBox(width: 8),
-                    
-                    if (recipe.sourceUrl != null && recipe.sourceUrl!.isNotEmpty)
+                    if (recipe.sourceUrl != null &&
+                        recipe.sourceUrl!.isNotEmpty)
                       Expanded(
                         child: ElevatedButton.icon(
                           onPressed: () {
-                            _showUrlDialog(context, 'Sumber Resep', recipe.sourceUrl!);
+                            _showUrlDialog(
+                                context, 'Sumber Resep', recipe.sourceUrl!);
                           },
                           icon: const Icon(Icons.link),
                           label: const Text('Sumber'),
@@ -278,8 +290,8 @@ class _RecipeTabState extends State<RecipeTab> {
                           ),
                         ),
                       ),
-                    
-                    if ((recipe.youtubeUrl == null || recipe.youtubeUrl!.isEmpty) &&
+                    if ((recipe.youtubeUrl == null ||
+                            recipe.youtubeUrl!.isEmpty) &&
                         (recipe.sourceUrl == null || recipe.sourceUrl!.isEmpty))
                       Expanded(
                         child: ElevatedButton.icon(

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'dart:developer';
 
 class EnvValidator {
   /// Validates that all required environment variables are set
@@ -8,18 +9,20 @@ class EnvValidator {
       'GEMINI_API_KEY': 'Gemini API key for AI features',
       // Add more required env vars here as needed
     };
-    
+
     bool isValid = true;
     List<String> missingVars = [];
-    
+
     for (var entry in requiredEnvVars.entries) {
       final value = dotenv.env[entry.key];
-      if (value == null || value.isEmpty || value == 'your_gemini_api_key_here') {
+      if (value == null ||
+          value.isEmpty ||
+          value == 'your_gemini_api_key_here') {
         isValid = false;
         missingVars.add('${entry.key} (${entry.value})');
       }
     }
-    
+
     if (!isValid && context != null) {
       // Show a helpful error message if any required variables are missing
       showDialog(
@@ -53,28 +56,28 @@ class EnvValidator {
         ),
       );
     }
-    
+
     return isValid;
   }
-  
+
   /// Logs the status of all environment variables (for debugging only)
   static void logEnvStatus() {
-    print('Environment Variables Status:');
+    log('Environment Variables Status:');
     final envVars = dotenv.env.entries.toList();
-    
+
     if (envVars.isEmpty) {
-      print('No environment variables found. Check that .env file exists and is properly loaded.');
+      log('No environment variables found. Check that .env file exists and is properly loaded.');
       return;
     }
-    
+
     for (var entry in envVars) {
       final key = entry.key;
       final value = entry.value;
-      final maskedValue = key.contains('KEY') || key.contains('SECRET') 
+      final maskedValue = key.contains('KEY') || key.contains('SECRET')
           ? '${value.substring(0, 3)}...${value.substring(value.length - 3)}'
           : value;
-      
-      print('$key: $maskedValue');
+
+      log('$key: $maskedValue');
     }
   }
 }

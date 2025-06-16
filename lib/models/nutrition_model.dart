@@ -28,8 +28,7 @@ class NutritionModel {
   });
 
   factory NutritionModel.fromGeminiResponse(String response, String foodName) {
-    // Parse response dari Gemini API dan ekstrak informasi nutrisi
-    // Ini adalah implementasi sederhana, bisa diperbaiki dengan regex yang lebih baik
+ 
     return NutritionModel(
       foodName: foodName,
       calories: _extractValue(response, 'kalori') ?? 'Data tidak tersedia',

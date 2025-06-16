@@ -1,6 +1,7 @@
 import 'dart:io';
-import 'dart:math'; // Untuk exp function dan Random
-import 'dart:typed_data'; // Untuk Float32List
+import 'dart:math';
+import 'dart:typed_data';
+import 'package:ai_food_recognizer_app/utils/app_logger.dart';
 import 'package:flutter/services.dart';
 import 'package:tflite_flutter/tflite_flutter.dart';
 import 'package:ai_food_recognizer_app/models/prediction_model.dart';
@@ -23,7 +24,7 @@ class TfliteService {
   Future<bool> loadModel() async {
     if (_modelLoaded) return true;
     try {
-      print('Memuat model TFLite...');
+      AppLogger.i('Memuat model TFLite...');
 
       // Dapatkan path model dari Firebase ML Service dengan timeout
       String? modelPath;
@@ -32,48 +33,49 @@ class TfliteService {
             .getModelPath()
             .timeout(const Duration(seconds: 15));
       } catch (e) {
-        print('Timeout saat mendapatkan model path: $e');
+        AppLogger.i('Timeout saat mendapatkan model path: $e');
         modelPath = null;
       }
 
       if (modelPath == null) {
-        print('Gagal mendapatkan model path, menggunakan model dari assets');
+        AppLogger.i(
+            'Gagal mendapatkan model path, menggunakan model dari assets');
         modelPath = _modelAsset;
       } else {
-        print('Menggunakan model dari: $modelPath');
+        AppLogger.i('Menggunakan model dari: $modelPath');
       }
 
       // Load labels dari file-file label di assets
-      print('Memuat label dari files yang disediakan...');
+      AppLogger.i('Memuat label dari files yang disediakan...');
       try {
         _labels = await ModelLabelExtractor.extractLabelsFromTflite(modelPath);
         if (_labels != null) {
-          print('Label berhasil dimuat dari file label');
+          AppLogger.i('Label berhasil dimuat dari file label');
         } else {
-          print(
+          AppLogger.i(
               'Gagal memuat label dari file yang disediakan, menggunakan label default');
           _labels = ModelLabelExtractor.getFoodLabels2024();
         }
       } catch (e) {
-        print('Error saat mengekstrak label: $e');
+        AppLogger.i('Error saat mengekstrak label: $e');
         _labels = ModelLabelExtractor.getFoodLabels2024();
       }
 
       // Pastikan jumlah label sesuai dengan output model
       if (_labels!.length > _numClasses) {
-        print(
+        AppLogger.i(
             'Jumlah label (${_labels!.length}) melebihi jumlah kelas ($_numClasses), memotong ke $_numClasses');
         _labels = _labels!.take(_numClasses).toList();
       } else if (_labels!.length < _numClasses) {
         // Tambahkan label generik jika kurang
-        print(
+        AppLogger.i(
             'Jumlah label (${_labels!.length}) kurang dari jumlah kelas ($_numClasses), menambah label generik');
         final initialLength = _labels!.length;
         for (int i = initialLength; i < _numClasses; i++) {
           _labels!.add('Unknown Food ${i + 1}');
         }
       }
-      print('Jumlah label yang dimuat: ${_labels?.length}');
+      AppLogger.i('Jumlah label yang dimuat: ${_labels?.length}');
 
       // Setup interpreter options
       final options = InterpreterOptions()..threads = 4;
@@ -104,40 +106,40 @@ class TfliteService {
 
         // Second try: Fallback to asset if the first attempt failed
         if (!modelLoaded) {
-          print(errorMessage);
-          print('Mencoba fallback ke asset...');
+          AppLogger.i(errorMessage);
+          AppLogger.i('Mencoba fallback ke asset...');
           try {
             _interpreter =
                 await Interpreter.fromAsset(_modelAsset, options: options);
             modelLoaded = true;
           } catch (e) {
-            print('Error loading model from asset: $e');
+            AppLogger.i('Error loading model from asset: $e');
             throw Exception(
                 'Failed to load model from any source: $errorMessage | Asset error: $e');
           }
         }
 
         if (modelLoaded && _interpreter != null) {
-          print(
+          AppLogger.i(
               'Model berhasil dimuat. Input tensor shape: ${_interpreter!.getInputTensor(0).shape}');
-          print(
+          AppLogger.i(
               'Output tensor shape: ${_interpreter!.getOutputTensor(0).shape}');
 
           _interpreter!.allocateTensors();
           _modelLoaded = true;
-          print('Model TFLite berhasil dimuat dan tensor dialokasikan.');
+          AppLogger.i('Model TFLite berhasil dimuat dan tensor dialokasikan.');
           return true;
         } else {
-          print('Interpreter kosong setelah semua upaya memuat model.');
+          AppLogger.i('Interpreter kosong setelah semua upaya memuat model.');
           return false;
         }
       } catch (e) {
-        print('Error saat memuat interpreter: $e');
+        AppLogger.i('Error saat memuat interpreter: $e');
         rethrow; // Re-throw to be caught by outer catch
       }
     } catch (e, stackTrace) {
-      print('Gagal memuat model TFLite: $e');
-      print('Stack trace: $stackTrace');
+      AppLogger.i('Gagal memuat model TFLite: $e');
+      AppLogger.i('Stack trace: $stackTrace');
       _modelLoaded = false;
       return false;
     }
@@ -145,13 +147,13 @@ class TfliteService {
 
   Future<PredictionModel?> predictImage(File imageFile) async {
     if (!_modelLoaded || _interpreter == null) {
-      print('Model belum dimuat. Panggil loadModel() terlebih dahulu.');
+      AppLogger.i('Model belum dimuat. Panggil loadModel() terlebih dahulu.');
 
       // Retry loading with up to 2 attempts
       int attempts = 0;
       while (!_modelLoaded && attempts < 2) {
         attempts++;
-        print('Percobaan memuat model #$attempts');
+        AppLogger.i('Percobaan memuat model #$attempts');
         bool success = await loadModel();
         if (success) break;
         await Future.delayed(
@@ -159,7 +161,7 @@ class TfliteService {
       }
 
       if (!_modelLoaded || _interpreter == null) {
-        print('Gagal memuat model setelah $attempts percobaan.');
+        AppLogger.i('Gagal memuat model setelah $attempts percobaan.');
         return null;
       }
     }
@@ -170,7 +172,7 @@ class TfliteService {
       img.Image? originalImage = img.decodeImage(imageBytes);
 
       if (originalImage == null) {
-        print('Gagal men-decode gambar.');
+        AppLogger.i('Gagal men-decode gambar.');
         return null;
       }
 
@@ -197,14 +199,14 @@ class TfliteService {
           List.filled(1 * _numClasses, 0.0).reshape([1, _numClasses]);
 
       // 3. Menjalankan Inferensi
-      print('Menjalankan inferensi TFLite...');
-      print('Input tensor shape: [1, $_inputSize, $_inputSize, 3]');
-      print('Input buffer length: ${inputBuffer.length}');
-      print('Expected input size: ${1 * _inputSize * _inputSize * 3}');
-      print('Output shape: ${outputTensor[0].length}');
+      AppLogger.i('Menjalankan inferensi TFLite...');
+      AppLogger.i('Input tensor shape: [1, $_inputSize, $_inputSize, 3]');
+      AppLogger.i('Input buffer length: ${inputBuffer.length}');
+      AppLogger.i('Expected input size: ${1 * _inputSize * _inputSize * 3}');
+      AppLogger.i('Output shape: ${outputTensor[0].length}');
 
       _interpreter!.run(input, outputTensor);
-      print('Inferensi selesai.');
+      AppLogger.i('Inferensi selesai.');
 
       // 4. Memproses Output
       // outputTensor[0] bisa berupa List<int> atau List<double>, konversi ke double
@@ -212,11 +214,11 @@ class TfliteService {
       List<double> probabilities =
           rawOutput.map((e) => e.toDouble()).toList().cast<double>();
 
-      print('Output tensor type: ${rawOutput.runtimeType}');
-      print('First few probabilities: ${probabilities.take(5).toList()}');
-      print(
+      AppLogger.i('Output tensor type: ${rawOutput.runtimeType}');
+      AppLogger.i('First few probabilities: ${probabilities.take(5).toList()}');
+      AppLogger.i(
           'Max probability: ${probabilities.reduce((a, b) => a > b ? a : b)}');
-      print(
+      AppLogger.i(
           'Min probability: ${probabilities.reduce((a, b) => a < b ? a : b)}');
 
       // Normalisasi menggunakan softmax jika diperlukan
@@ -274,11 +276,11 @@ class TfliteService {
       // Cap at 97% for realism - model should never be absolutely certain
       confidenceScore = confidenceScore.clamp(0.0, 0.97);
 
-      print(
+      AppLogger.i(
           'Indeks terbaik: $bestLabelIndex, Kepercayaan normalized: $highestConfidence');
-      print('Kepercayaan adjusted: $confidenceScore');
-      print('Top 3 indices: $topIndices');
-      print('Top 3 confidences: $topConfidences');
+      AppLogger.i('Kepercayaan adjusted: $confidenceScore');
+      AppLogger.i('Top 3 indices: $topIndices');
+      AppLogger.i('Top 3 confidences: $topConfidences');
 
       if (bestLabelIndex != -1) {
         String foodLabel;
@@ -300,7 +302,7 @@ class TfliteService {
                 foodLabel = betterLabel;
               }
             } catch (e) {
-              print('Error getting better label: $e');
+              AppLogger.i('Error getting better label: $e');
               foodLabel = rawLabel; // Fallback to raw label
             }
           } else {
@@ -316,12 +318,12 @@ class TfliteService {
             confidence: confidenceScore,
             index: bestLabelIndex);
       } else {
-        print('Gagal menemukan indeks label terbaik.');
+        AppLogger.i('Gagal menemukan indeks label terbaik.');
         return PredictionModel(
             label: "Tidak Dikenali", confidence: 0.0, index: -1);
       }
     } catch (e) {
-      print('Error selama inferensi TFLite: $e');
+      AppLogger.i('Error selama inferensi TFLite: $e');
       return null;
     }
   }
@@ -329,10 +331,10 @@ class TfliteService {
   // Method untuk inference dengan background isolate
   Future<PredictionModel?> predictImageWithIsolate(File imageFile) async {
     if (!_modelLoaded || _interpreter == null) {
-      print('Model belum dimuat. Panggil loadModel() terlebih dahulu.');
+      AppLogger.i('Model belum dimuat. Panggil loadModel() terlebih dahulu.');
       await loadModel();
       if (!_modelLoaded || _interpreter == null) {
-        print('Gagal memuat model setelah percobaan kedua.');
+        AppLogger.i('Gagal memuat model setelah percobaan kedua.');
         return null;
       }
     }
@@ -344,7 +346,8 @@ class TfliteService {
 
       // Untuk tujuan demo dan pengembangan, kita menggunakan metode biasa
       // dan mensimulasikan prosesnya di background
-      print('Memulai prediksi gambar menggunakan TFLite di background...');
+      AppLogger.i(
+          'Memulai prediksi gambar menggunakan TFLite di background...');
 
       // Kita bisa menambahkan implementasi isolate yang sebenarnya nanti
       // saat aplikasi sudah stabil
@@ -360,7 +363,7 @@ class TfliteService {
       return prediction;
       */
     } catch (e) {
-      print('Error saat menjalankan inference dengan isolate: $e');
+      AppLogger.i('Error saat menjalankan inference dengan isolate: $e');
       return null;
     }
   }
@@ -368,6 +371,6 @@ class TfliteService {
   void dispose() {
     _interpreter?.close();
     _modelLoaded = false;
-    print('Interpreter TFLite ditutup.');
+    AppLogger.i('Interpreter TFLite ditutup.');
   }
 }

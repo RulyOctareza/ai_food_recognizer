@@ -4,6 +4,7 @@ import 'package:camera/camera.dart';
 import 'package:ai_food_recognizer_app/services/camera_service.dart';
 import 'package:ai_food_recognizer_app/services/tflite_service.dart';
 import 'package:ai_food_recognizer_app/screens/result_screen.dart';
+import 'dart:developer';
 
 class CameraScreen extends StatefulWidget {
   const CameraScreen({super.key});
@@ -32,7 +33,8 @@ class _CameraScreenState extends State<CameraScreen> {
       await _cameraService.initializeCamera();
       await _tfliteService.loadModel();
     } catch (e) {
-      print('Error initializing services: $e');
+      log('Error initializing services: $e');
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Gagal menginisialisasi kamera: $e')),
       );
@@ -53,8 +55,9 @@ class _CameraScreenState extends State<CameraScreen> {
     try {
       // Ambil gambar dari kamera
       final File? imageFile = await _cameraService.takePicture();
-      
+
       if (imageFile == null) {
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Gagal mengambil gambar')),
         );
@@ -63,9 +66,9 @@ class _CameraScreenState extends State<CameraScreen> {
 
       // Lakukan prediksi
       final prediction = await _tfliteService.predictImage(imageFile);
-      
+
       if (prediction != null) {
-        // Navigasi ke result screen
+          if (!mounted) return; 
         Navigator.push(
           context,
           MaterialPageRoute(
@@ -76,12 +79,13 @@ class _CameraScreenState extends State<CameraScreen> {
           ),
         );
       } else {
+        if (!mounted) return; 
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Gagal mendapatkan prediksi makanan')),
         );
       }
     } catch (e) {
-      print('Error during capture and prediction: $e');
+      log('Error during capture and prediction: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error: $e')),
       );
@@ -131,7 +135,7 @@ class _CameraScreenState extends State<CameraScreen> {
                     Positioned.fill(
                       child: CameraPreview(_cameraService.controller!),
                     ),
-                    
+
                     // Overlay UI
                     Positioned(
                       bottom: 50,
@@ -144,14 +148,16 @@ class _CameraScreenState extends State<CameraScreen> {
                           FloatingActionButton(
                             heroTag: "back",
                             onPressed: () => Navigator.pop(context),
-                            backgroundColor: Colors.grey.withOpacity(0.8),
-                            child: const Icon(Icons.arrow_back, color: Colors.white),
+                            backgroundColor: Colors.grey.withValues(alpha: .8),
+                            child: const Icon(Icons.arrow_back,
+                                color: Colors.white),
                           ),
-                          
+
                           // Capture button
                           FloatingActionButton(
                             heroTag: "capture",
-                            onPressed: _isLoading ? null : _takePictureAndPredict,
+                            onPressed:
+                                _isLoading ? null : _takePictureAndPredict,
                             backgroundColor: Colors.green,
                             child: _isLoading
                                 ? const SizedBox(
@@ -162,15 +168,16 @@ class _CameraScreenState extends State<CameraScreen> {
                                       strokeWidth: 2,
                                     ),
                                   )
-                                : const Icon(Icons.camera_alt, color: Colors.white, size: 30),
+                                : const Icon(Icons.camera_alt,
+                                    color: Colors.white, size: 30),
                           ),
-                          
+
                           // Placeholder for symmetry
                           const SizedBox(width: 56),
                         ],
                       ),
                     ),
-                    
+
                     // Center focus indicator
                     const Center(
                       child: Icon(

@@ -5,7 +5,7 @@ import 'package:ai_food_recognizer_app/services/tflite_service.dart';
 import 'package:ai_food_recognizer_app/models/prediction_model.dart';
 import 'result_screen.dart';
 import 'camera_screen.dart';
-
+import 'dart:developer';
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -42,17 +42,17 @@ class _HomeScreenState extends State<HomeScreen> {
       });
       return;
     }
-
-    File? croppedImage = await _imagePickerService.cropImage(pickedImage, context);
+    if (!mounted) return; 
+    File? croppedImage =
+        await _imagePickerService.cropImage(pickedImage, context);
     if (croppedImage == null) {
-      // Jika cropping dibatalkan atau gagal, gunakan gambar asli
-      // Atau bisa juga hentikan proses jika crop wajib
-      // croppedImage = pickedImage; 
-       setState(() {
+      setState(() {
         _isLoading = false;
       });
+      if (!mounted) return; 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Pemotongan gambar dibatalkan atau gagal.')),
+        const SnackBar(
+            content: Text('Pemotongan gambar dibatalkan atau gagal.')),
       );
       return;
     }
@@ -60,13 +60,14 @@ class _HomeScreenState extends State<HomeScreen> {
     PredictionModel? prediction;
     try {
       // Add timeout to prevent UI freezing
-      prediction = await _tfliteService.predictImage(croppedImage)
+      prediction = await _tfliteService
+          .predictImage(croppedImage)
           .timeout(const Duration(seconds: 15), onTimeout: () {
-        print('Timeout saat melakukan prediksi gambar');
+        log('Timeout saat melakukan prediksi gambar');
         return null;
       });
     } catch (e) {
-      print('Error saat melakukan prediksi: $e');
+      log('Error saat melakukan prediksi: $e');
     }
 
     setState(() {
@@ -79,7 +80,8 @@ class _HomeScreenState extends State<HomeScreen> {
         MaterialPageRoute(
           builder: (context) => ResultScreen(
             imageFile: croppedImage,
-            prediction: prediction!, // Force non-null with ! operator since we already checked
+            prediction:
+                prediction!, // Force non-null with ! operator since we already checked
           ),
         ),
       );
@@ -87,7 +89,8 @@ class _HomeScreenState extends State<HomeScreen> {
       // Show more detailed error message
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Gagal mendapatkan prediksi makanan. Coba lagi atau restart aplikasi.'),
+          content: Text(
+              'Gagal mendapatkan prediksi makanan. Coba lagi atau restart aplikasi.'),
           duration: Duration(seconds: 3),
         ),
       );
@@ -107,10 +110,10 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.1),
+          color: color.withValues(alpha: .1),
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: color.withOpacity(0.3),
+            color: color.withValues(alpha: .3),
             width: 1,
           ),
         ),
@@ -123,7 +126,7 @@ class _HomeScreenState extends State<HomeScreen> {
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
-                color: color.withOpacity(0.8),
+                color: color.withValues(alpha: .8),
               ),
             ),
             const SizedBox(height: 6),
@@ -132,7 +135,7 @@ class _HomeScreenState extends State<HomeScreen> {
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 12,
-                color: color.withOpacity(0.7),
+                color: color.withValues(alpha: .7),
               ),
             ),
           ],
@@ -168,7 +171,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         shape: BoxShape.circle,
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.2),
+                            color: Colors.black.withValues(alpha: .2),
                             blurRadius: 10,
                             spreadRadius: 2,
                           ),
@@ -203,9 +206,9 @@ class _HomeScreenState extends State<HomeScreen> {
                   ],
                 ),
               ),
-              
+
               const Spacer(),
-              
+
               // Card untuk opsi pengambilan gambar
               Container(
                 width: double.infinity,
@@ -216,7 +219,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   borderRadius: BorderRadius.circular(20),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.1),
+                      color: Colors.black.withValues(alpha: .1),
                       blurRadius: 10,
                       spreadRadius: 5,
                       offset: const Offset(0, 5),
@@ -268,7 +271,8 @@ class _HomeScreenState extends State<HomeScreen> {
                                     Navigator.push(
                                       context,
                                       MaterialPageRoute(
-                                        builder: (context) => const CameraScreen(),
+                                        builder: (context) =>
+                                            const CameraScreen(),
                                       ),
                                     );
                                   },
@@ -276,7 +280,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                       ],
                     ),
-                    if (_isLoading) 
+                    if (_isLoading)
                       Container(
                         margin: const EdgeInsets.only(top: 20),
                         child: const Center(

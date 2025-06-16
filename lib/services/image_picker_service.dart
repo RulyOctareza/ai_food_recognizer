@@ -1,5 +1,5 @@
 import 'dart:io';
-
+import 'dart:developer';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:image_cropper/image_cropper.dart';
@@ -17,7 +17,7 @@ class ImagePickerService {
         return File(pickedFile.path);
       }
     } catch (e) {
-      print('Error picking image from gallery: $e');
+      log('Error picking image from gallery: $e');
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Gagal mengambil gambar dari galeri: $e')),
@@ -36,7 +36,7 @@ class ImagePickerService {
         return File(croppedFile.path);
       }
     } catch (e) {
-      print('Error cropping image: $e');
+      log('Error cropping image: $e');
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Gagal memotong gambar: $e')),

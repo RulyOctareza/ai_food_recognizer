@@ -1,8 +1,7 @@
 import 'dart:math';
-// Uncomment below imports when implementing real isolate functionality
-// import 'dart:isolate';
-// import 'package:flutter_isolate/flutter_isolate.dart';
+
 import 'package:ai_food_recognizer_app/models/prediction_model.dart';
+import 'package:ai_food_recognizer_app/utils/app_logger.dart';
 
 // Service untuk menjalankan TFLite inference di background isolate
 class IsolateInferenceService {
@@ -16,7 +15,7 @@ class IsolateInferenceService {
   }) async {
     try {
       if (_isRunning) {
-        print('Isolate sedang berjalan, menunggu...');
+        AppLogger.i('Isolate sedang berjalan, menunggu...');
         await Future.delayed(const Duration(milliseconds: 100));
         return await runInference(
           imagePath: imagePath,
@@ -26,15 +25,15 @@ class IsolateInferenceService {
       }
 
       _isRunning = true;
-      print('Memulai inference di background isolate...');
+      AppLogger.i('Memulai inference di background isolate...');
 
       // Untuk implementasi sederhana, kita akan mengembalikan prediksi dummy
       // Simulasikan delay seperti sedang melakukan inference
       await Future.delayed(const Duration(milliseconds: 500));
-      
+
       // Generate more realistic confidence score
       double confidence = 0.5 + (Random().nextDouble() * 0.35);
-      
+
       // Buat hasil prediction dengan confidence yang lebih realistis
       final prediction = PredictionModel(
         label: labels.isNotEmpty ? labels[0] : 'Unknown Food',
@@ -42,10 +41,10 @@ class IsolateInferenceService {
         index: 0,
       );
 
-      print('Inference selesai di background isolate');
+      AppLogger.i('Inference selesai di background isolate');
       return prediction;
     } catch (e) {
-      print('Error saat menjalankan inference di isolate: $e');
+      AppLogger.i('Error saat menjalankan inference di isolate: $e');
       return null;
     } finally {
       _isRunning = false;

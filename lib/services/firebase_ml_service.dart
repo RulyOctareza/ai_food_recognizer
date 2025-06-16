@@ -2,7 +2,7 @@ import 'dart:io';
 import 'package:firebase_ml_model_downloader/firebase_ml_model_downloader.dart';
 import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
-
+import 'dart:developer';
 class FirebaseMlService {
   static const String _modelName = 'food-recognizer';
   static const String _localModelPath =
@@ -11,7 +11,7 @@ class FirebaseMlService {
   // Download model dari Firebase ML
   Future<String?> downloadModel() async {
     try {
-      print('Mencoba mendownload model dari Firebase ML...');
+      log('Mencoba mendownload model dari Firebase ML...');
 
       FirebaseCustomModel? model;
       try {
@@ -27,21 +27,21 @@ class FirebaseMlService {
             )
             .timeout(const Duration(seconds: 10));
       } catch (e) {
-        print('Timeout atau error saat mendownload model: $e');
+        log('Timeout atau error saat mendownload model: $e');
         return null;
       }
 
       final file = model.file;
       if (await file.exists()) {
-        print('Model berhasil didownload: ${file.path}');
+        log('Model berhasil didownload: ${file.path}');
         return file.path;
       } else {
-        print('File model tidak ditemukan setelah download');
+        log('File model tidak ditemukan setelah download');
       }
 
       return null;
     } catch (e) {
-      print('Error saat mendownload model dari Firebase ML: $e');
+      log('Error saat mendownload model dari Firebase ML: $e');
       return null;
     }
   }
@@ -49,7 +49,7 @@ class FirebaseMlService {
   // Cek apakah model sudah ada di cache lokal
   Future<String?> getCachedModel() async {
     try {
-      print('Memeriksa model di cache...');
+      log('Memeriksa model di cache...');
       FirebaseCustomModel? model;
 
       try {
@@ -65,21 +65,21 @@ class FirebaseMlService {
             )
             .timeout(const Duration(seconds: 5));
       } catch (e) {
-        print('Timeout atau error saat memeriksa cache: $e');
+        log('Timeout atau error saat memeriksa cache: $e');
         return null;
       }
 
       final file = model.file;
       if (await file.exists()) {
-        print('Model ditemukan di cache: ${file.path}');
+        log('Model ditemukan di cache: ${file.path}');
         return file.path;
       } else {
-        print('File model cache tidak ditemukan');
+        log('File model cache tidak ditemukan');
       }
 
       return null;
     } catch (e) {
-      print('Error saat mengecek cached model: $e');
+      log('Error saat mengecek cached model: $e');
       return null;
     }
   }
@@ -87,14 +87,14 @@ class FirebaseMlService {
   // Fallback ke model lokal jika Firebase ML tidak tersedia
   Future<String?> getLocalModel() async {
     try {
-      print('Menggunakan model lokal dari assets...');
+      log('Menggunakan model lokal dari assets...');
 
       // Cek apakah file sudah dicopy ke directory aplikasi
       final appDir = await getApplicationDocumentsDirectory();
       final localModelFile = File('${appDir.path}/food-recognizer.tflite');
 
       if (await localModelFile.exists()) {
-        print('Model lokal ditemukan: ${localModelFile.path}');
+        log('Model lokal ditemukan: ${localModelFile.path}');
         return localModelFile.path;
       }
 
@@ -104,16 +104,16 @@ class FirebaseMlService {
         final bytes = byteData.buffer.asUint8List();
 
         await localModelFile.writeAsBytes(bytes);
-        print('Model lokal berhasil dicopy: ${localModelFile.path}');
+        log('Model lokal berhasil dicopy: ${localModelFile.path}');
 
         return localModelFile.path;
       } catch (e) {
-        print('Error saat menyalin model dari assets: $e');
+        log('Error saat menyalin model dari assets: $e');
         // Jika gagal menyalin, coba langsung gunakan path assets
         return _localModelPath;
       }
     } catch (e) {
-      print('Error saat mengakses model lokal: $e');
+      log('Error saat mengakses model lokal: $e');
       // Fallback ke direct assets path sebagai last resort
       return _localModelPath;
     }
@@ -121,31 +121,31 @@ class FirebaseMlService {
 
   // Method utama untuk mendapatkan path model
   Future<String?> getModelPath() async {
-    print('Memulai proses mendapatkan model path...');
+    log('Memulai proses mendapatkan model path...');
 
     // 1. Coba cek cache terlebih dahulu
     String? modelPath = await getCachedModel();
     if (modelPath != null) {
-      print('Menggunakan model dari cache');
+      log('Menggunakan model dari cache');
       return modelPath;
     }
 
     // 2. Coba download dari Firebase ML
     modelPath = await downloadModel();
     if (modelPath != null) {
-      print('Menggunakan model yang baru didownload');
+      log('Menggunakan model yang baru didownload');
       return modelPath;
     }
 
     // 3. Fallback ke model lokal
-    print('Fallback ke model lokal');
+    log('Fallback ke model lokal');
     modelPath = await getLocalModel();
     if (modelPath != null) {
-      print('Menggunakan model lokal: $modelPath');
+      log('Menggunakan model lokal: $modelPath');
       return modelPath;
     }
 
-    print('KRITIS: Tidak dapat mendapatkan model dari manapun!');
+    log('KRITIS: Tidak dapat mendapatkan model dari manapun!');
     return null;
   }
 
@@ -153,10 +153,10 @@ class FirebaseMlService {
   Future<bool> deleteModel() async {
     try {
       await FirebaseModelDownloader.instance.deleteDownloadedModel(_modelName);
-      print('Model berhasil dihapus dari cache');
+      log('Model berhasil dihapus dari cache');
       return true;
     } catch (e) {
-      print('Error saat menghapus model: $e');
+      log('Error saat menghapus model: $e');
       return false;
     }
   }
@@ -166,12 +166,12 @@ class FirebaseMlService {
     try {
       final models =
           await FirebaseModelDownloader.instance.listDownloadedModels();
-      print('Downloaded models:');
+      log('Downloaded models:');
       for (final model in models) {
-        print('- ${model.name}: ${model.file}, size: ${model.size}');
+        log('- ${model.name}: ${model.file}, size: ${model.size}');
       }
     } catch (e) {
-      print('Error saat listing models: $e');
+      log('Error saat listing models: $e');
     }
   }
 }

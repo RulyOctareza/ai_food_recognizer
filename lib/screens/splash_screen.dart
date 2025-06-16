@@ -4,7 +4,7 @@ import 'package:ai_food_recognizer_app/screens/home_screen.dart';
 import 'package:ai_food_recognizer_app/services/tflite_service.dart';
 import 'package:ai_food_recognizer_app/utils/model_diagnostic_util.dart';
 import 'package:ai_food_recognizer_app/utils/env_validator.dart';
-
+import 'dart:developer';
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
 
@@ -12,39 +12,40 @@ class SplashScreen extends StatefulWidget {
   State<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderStateMixin {
+class _SplashScreenState extends State<SplashScreen>
+    with SingleTickerProviderStateMixin {
   late AnimationController _animationController;
   late Animation<double> _animation;
   final TfliteService _tfliteService = TfliteService();
   bool _modelLoaded = false;
   bool _timerComplete = false;
   String _loadingStatus = 'Initializing...';
-  
+
   @override
   void initState() {
     super.initState();
-    
+
     // Buat animasi untuk logo
     _animationController = AnimationController(
       duration: const Duration(seconds: 2),
       vsync: this,
     );
-    
+
     // Validasi environment variables
     WidgetsBinding.instance.addPostFrameCallback((_) {
       EnvValidator.validateEnv(context);
     });
-    
+
     _animation = CurvedAnimation(
       parent: _animationController,
       curve: Curves.easeInOut,
     );
-    
+
     _animationController.forward();
-    
+
     // Load TFLite model di background
     _loadModel();
-    
+
     // Pastikan splash screen muncul minimal 2.5 detik
     Timer(const Duration(milliseconds: 2500), () {
       setState(() {
@@ -53,47 +54,49 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
       });
     });
   }
-  
+
   Future<void> _loadModel() async {
     try {
       setState(() {
         _loadingStatus = 'Mempersiapkan model AI...';
       });
-      
+
       // Run diagnostic before attempting to load model
       try {
         final diagnostics = await ModelDiagnosticUtil.runDiagnostics();
-        print(diagnostics);
+        log(diagnostics);
       } catch (e) {
-        print('Error running diagnostics: $e');
+        log('Error running diagnostics: $e');
       }
-      
+
       // Add timeout to prevent hanging indefinitely
-      bool success = await _tfliteService.loadModel()
+      bool success = await _tfliteService
+          .loadModel()
           .timeout(const Duration(seconds: 20), onTimeout: () {
-        print('Timeout saat memuat model TFLite');
+        log('Timeout saat memuat model TFLite');
         return false;
       });
-      
+
       setState(() {
-        _loadingStatus = success ? 'Model berhasil dimuat!' : 'Gagal memuat model';
+        _loadingStatus =
+            success ? 'Model berhasil dimuat!' : 'Gagal memuat model';
         _modelLoaded = success;
-        
+
         if (!success) {
           // Even if model failed to load, we should proceed after a delay
-          print('Model gagal dimuat, tapi aplikasi akan tetap dilanjutkan');
-          
+          log('Model gagal dimuat, tapi aplikasi akan tetap dilanjutkan');
+
           // Show a message that we're continuing anyway
           Future.delayed(const Duration(seconds: 1), () {
             setState(() {
               _loadingStatus = 'Melanjutkan tanpa model...';
             });
-            
+
             // Run diagnostic again to determine the cause of failure
             ModelDiagnosticUtil.runDiagnostics().then((diagnostics) {
-              print('Post-failure diagnostics:\n$diagnostics');
+              log('Post-failure diagnostics:\n$diagnostics');
             });
-            
+
             Future.delayed(const Duration(seconds: 2), () {
               setState(() {
                 _modelLoaded = true; // Force proceed
@@ -106,16 +109,16 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
         }
       });
     } catch (e) {
-      print('Error saat memuat model: $e');
+      log('Error saat memuat model: $e');
       setState(() {
         _loadingStatus = 'Error: $e';
       });
-      
+
       // Run diagnostic to determine the cause of the error
       ModelDiagnosticUtil.runDiagnostics().then((diagnostics) {
-        print('Error diagnostics:\n$diagnostics');
+        log('Error diagnostics:\n$diagnostics');
       });
-      
+
       // Proceed anyway after error
       Future.delayed(const Duration(seconds: 2), () {
         setState(() {
@@ -126,7 +129,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
       });
     }
   }
-  
+
   void _checkNavigate() {
     if (_modelLoaded && _timerComplete) {
       Navigator.of(context).pushReplacement(
@@ -134,7 +137,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
       );
     }
   }
-  
+
   @override
   void dispose() {
     _animationController.dispose();
