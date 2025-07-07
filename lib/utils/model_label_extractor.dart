@@ -93,7 +93,7 @@ class ModelLabelExtractor {
 
       // If all approaches failed, use default labels
       log('Semua pendekatan ekstraksi label gagal, menggunakan label default');
-      return getFoodLabels2024();
+      return ['Bukan makanan'];
     } catch (e) {
       log('Error pada ekstraksi label: $e');
       return null;
@@ -101,36 +101,36 @@ class ModelLabelExtractor {
   }
 
   // Fungsi ini mengembalikan label default ketika file label tidak dapat dimuat
-  static List<String> getFoodLabels2024() {
-    // These are common food categories that might be in a 2024-class food recognition model
-    // This is a comprehensive list of food items organized by categories
-    return [
-      // Indonesian Foods
-      'Nasi Gudeg', 'Rendang', 'Gado-gado', 'Sate Ayam', 'Nasi Padang',
-      'Gudeg Jogja', 'Pecel Lele', 'Ayam Bakar', 'Ikan Bakar', 'Soto Ayam',
-      'Bakso', 'Mie Ayam', 'Nasi Goreng', 'Ayam Goreng', 'Bebek Goreng',
-      'Rawon', 'Rujak', 'Kerupuk', 'Tempe Goreng', 'Tahu Goreng',
+  // static List<String> getFoodLabels2024() {
+  //   // These are common food categories that might be in a 2024-class food recognition model
+  //   // This is a comprehensive list of food items organized by categories
+  //   return [
+  //     // Indonesian Foods
+  //     'Nasi Gudeg', 'Rendang', 'Gado-gado', 'Sate Ayam', 'Nasi Padang',
+  //     'Gudeg Jogja', 'Pecel Lele', 'Ayam Bakar', 'Ikan Bakar', 'Soto Ayam',
+  //     'Bakso', 'Mie Ayam', 'Nasi Goreng', 'Ayam Goreng', 'Bebek Goreng',
+  //     'Rawon', 'Rujak', 'Kerupuk', 'Tempe Goreng', 'Tahu Goreng',
 
-      // International Foods
-      'Pizza Margherita', 'Pizza Pepperoni', 'Hamburger', 'Cheeseburger',
-      'Hot Dog', 'Pasta Carbonara', 'Pasta Bolognese', 'Spaghetti',
-      'Fried Chicken', 'Grilled Chicken', 'Chicken Wings', 'Fish and Chips',
-      'Steak', 'Pork Chops', 'Lamb Curry', 'Beef Stew',
+  //     // International Foods
+  //     'Pizza Margherita', 'Pizza Pepperoni', 'Hamburger', 'Cheeseburger',
+  //     'Hot Dog', 'Pasta Carbonara', 'Pasta Bolognese', 'Spaghetti',
+  //     'Fried Chicken', 'Grilled Chicken', 'Chicken Wings', 'Fish and Chips',
+  //     'Steak', 'Pork Chops', 'Lamb Curry', 'Beef Stew',
 
-      // Asian Foods
-      'Sushi', 'Ramen', 'Pad Thai', 'Fried Rice', 'Spring Rolls',
-      'Dim Sum', 'Dumplings', 'Pho', 'Tom Yum', 'Green Curry',
-      'Red Curry', 'Bibimbap', 'Kimchi', 'Bulgogi', 'Teriyaki',
+  //     // Asian Foods
+  //     'Sushi', 'Ramen', 'Pad Thai', 'Fried Rice', 'Spring Rolls',
+  //     'Dim Sum', 'Dumplings', 'Pho', 'Tom Yum', 'Green Curry',
+  //     'Red Curry', 'Bibimbap', 'Kimchi', 'Bulgogi', 'Teriyaki',
 
-      // Breakfast Items
-      'Pancakes', 'Waffles', 'French Toast', 'Eggs Benedict', 'Omelette',
-      'Scrambled Eggs', 'Fried Eggs', 'Cereal', 'Oatmeal', 'Yogurt',
-      'Croissant', 'Bagel', 'Toast', 'Bacon', 'Sausage',
+  //     // Breakfast Items
+  //     'Pancakes', 'Waffles', 'French Toast', 'Eggs Benedict', 'Omelette',
+  //     'Scrambled Eggs', 'Fried Eggs', 'Cereal', 'Oatmeal', 'Yogurt',
+  //     'Croissant', 'Bagel', 'Toast', 'Bacon', 'Sausage',
 
-      // Default placeholder untuk sisa kelas
-      'Unknown Food', 'Generic Food Item',
-    ];
-  }
+  //     // Default placeholder untuk sisa kelas
+  //     'Unknown Food', 'Generic Food Item',
+  //   ];
+  // }
 
   // Mendapatkan nama makanan yang bisa dibaca manusia dari ID label
   static Object getHumanReadableLabel(String labelId, int classIndex) {

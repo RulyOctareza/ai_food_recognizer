@@ -62,16 +62,18 @@ class _HomeScreenState extends State<HomeScreen> {
       return;
     }
 
-    PredictionModel? prediction;
+    PredictionResult? predictionResult;
     try {
-      prediction = await _tfliteService
+      predictionResult = await _tfliteService
           .predictImage(croppedImage)
           .timeout(const Duration(seconds: 15), onTimeout: () {
         log('Timeout saat melakukan prediksi gambar');
-        return null;
+        return PredictionResult.error('Timeout saat melakukan prediksi gambar');
       });
     } catch (e) {
       log('Error saat melakukan prediksi: $e');
+      predictionResult =
+          PredictionResult.error('Terjadi error saat prediksi: $e');
     }
 
     if (!mounted) return;
@@ -79,22 +81,26 @@ class _HomeScreenState extends State<HomeScreen> {
       _isLoading = false;
     });
 
-    if (prediction != null && mounted) {
+    if (predictionResult.status == PredictionStatus.success &&
+        predictionResult.prediction != null &&
+        mounted) {
+      final PredictionModel pred = predictionResult.prediction!;
       Navigator.push(
         context,
         MaterialPageRoute(
           builder: (context) => ResultScreen(
             imageFile: croppedImage,
-            prediction: prediction!,
+            prediction: pred,
           ),
         ),
       );
     } else if (mounted) {
+      final errorMsg = predictionResult.errorMessage ??
+          'Gagal mendapatkan prediksi makanan. Coba lagi atau restart aplikasi.';
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-              'Gagal mendapatkan prediksi makanan. Coba lagi atau restart aplikasi.'),
-          duration: Duration(seconds: 3),
+        SnackBar(
+          content: Text(errorMsg),
+          duration: const Duration(seconds: 3),
         ),
       );
     }

@@ -86,23 +86,27 @@ class _CameraScreenState extends State<CameraScreen> {
       }
 
       // Lakukan prediksi dengan gambar yang sudah di-crop
-      final prediction = await _tfliteService.predictImage(croppedFile);
+      final PredictionResult predictionResult =
+          await _tfliteService.predictImage(croppedFile);
 
-      if (prediction != null) {
+      if (predictionResult.status == PredictionStatus.success &&
+          predictionResult.prediction != null) {
         if (!mounted) return;
         Navigator.push(
           context,
           MaterialPageRoute(
             builder: (context) => ResultScreen(
               imageFile: croppedFile,
-              prediction: prediction,
+              prediction: predictionResult.prediction!,
             ),
           ),
         );
       } else {
         if (!mounted) return;
+        final errorMsg = predictionResult.errorMessage ??
+            'Gagal mendapatkan prediksi makanan';
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Gagal mendapatkan prediksi makanan')),
+          SnackBar(content: Text(errorMsg)),
         );
       }
     } catch (e) {

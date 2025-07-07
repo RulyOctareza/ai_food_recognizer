@@ -82,8 +82,12 @@ class _SplashScreenState extends State<SplashScreen>
 
       if (!mounted) return;
       setState(() {
-        _loadingStatus =
-            success ? 'Model berhasil dimuat!' : 'Gagal memuat model';
+        if (success) {
+          _loadingStatus = 'Model berhasil dimuat!';
+        } else {
+          _loadingStatus =
+              'Gagal memuat model. Pastikan koneksi internet stabil dan file model tersedia.';
+        }
         _modelLoaded = success;
 
         if (!success) {
@@ -100,6 +104,13 @@ class _SplashScreenState extends State<SplashScreen>
             // Run diagnostic again to determine the cause of failure
             ModelDiagnosticUtil.runDiagnostics().then((diagnostics) {
               log('Post-failure diagnostics:\n$diagnostics');
+              // Tampilkan hasil diagnosa ke user
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Diagnosa: $diagnostics'),
+                  duration: const Duration(seconds: 5),
+                ),
+              );
             });
 
             Future.delayed(const Duration(seconds: 2), () {

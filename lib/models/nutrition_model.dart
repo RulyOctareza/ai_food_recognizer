@@ -28,12 +28,12 @@ class NutritionModel {
   });
 
   factory NutritionModel.fromGeminiResponse(String response, String foodName) {
- 
     return NutritionModel(
       foodName: foodName,
       calories: _extractValue(response, 'kalori') ?? 'Data tidak tersedia',
       protein: _extractValue(response, 'protein') ?? 'Data tidak tersedia',
-      carbohydrates: _extractValue(response, 'karbohidrat') ?? 'Data tidak tersedia',
+      carbohydrates:
+          _extractValue(response, 'karbohidrat') ?? 'Data tidak tersedia',
       fat: _extractValue(response, 'lemak') ?? 'Data tidak tersedia',
       fiber: _extractValue(response, 'serat') ?? 'Data tidak tersedia',
       sugar: _extractValue(response, 'gula') ?? 'Data tidak tersedia',
@@ -46,12 +46,20 @@ class NutritionModel {
   }
 
   static String? _extractValue(String text, String nutrient) {
-    // Sederhana ekstraksi - bisa diperbaiki dengan regex yang lebih baik
+    // Lebih robust: support format key-value, bullet, tabel, dan satuan
     final patterns = [
-      RegExp('$nutrient[:\\s]*([0-9]+[.,]?[0-9]*\\s*[a-zA-Z]*)', caseSensitive: false),
-      RegExp('([0-9]+[.,]?[0-9]*\\s*[a-zA-Z]*)\\s*$nutrient', caseSensitive: false),
+      // Format: kalori: 120 kkal
+      RegExp('$nutrient[:s]*([0-9]+[.,]?[0-9]*s*[a-zA-Z]*)',
+          caseSensitive: false),
+      // Format: 120 kkal kalori
+      RegExp('([0-9]+[.,]?[0-9]*s*[a-zA-Z]*)s*$nutrient', caseSensitive: false),
+      // Format: - kalori 120 kkal
+      RegExp('-s*$nutrient[:s]*([0-9]+[.,]?[0-9]*s*[a-zA-Z]*)',
+          caseSensitive: false),
+      // Format tabel: | kalori | 120 kkal |
+      RegExp('|s*${nutrient}s*|s*([0-9]+[.,]?[0-9]*s*[a-zA-Z]*)s*|',
+          caseSensitive: false),
     ];
-    
     for (final pattern in patterns) {
       final match = pattern.firstMatch(text);
       if (match != null) {
@@ -62,8 +70,28 @@ class NutritionModel {
   }
 
   static List<String>? _extractList(String text, String category) {
-    // Implementasi sederhana untuk ekstraksi list vitamin/mineral
-    // Bisa diperbaiki sesuai kebutuhan
+    // Ekstraksi list vitamin/mineral dari bullet, koma, atau baris
+    // Contoh: "Vitamin: A, B1, B2, C" atau "- Vitamin: A\n- Vitamin: B1"
+    final bulletPattern = RegExp('-s*$category[:s]*([ws,]+)',
+        caseSensitive: false, multiLine: true);
+    final linePattern = RegExp('$category[:s]*([ws,]+)', caseSensitive: false);
+    final tablePattern =
+        RegExp('|s*${category}s*|s*([ws,]+)s*|', caseSensitive: false);
+    final patterns = [bulletPattern, linePattern, tablePattern];
+    for (final pattern in patterns) {
+      final match = pattern.firstMatch(text);
+      if (match != null) {
+        final raw = match.group(1);
+        if (raw != null) {
+          // Split by comma or new line, trim each
+          return raw
+              .split(RegExp('[,\n]'))
+              .map((e) => e.trim())
+              .where((e) => e.isNotEmpty)
+              .toList();
+        }
+      }
+    }
     return [];
   }
 }
