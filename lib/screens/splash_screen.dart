@@ -117,7 +117,7 @@ class _SplashScreenState extends State<SplashScreen>
             Future.delayed(const Duration(seconds: 2), () {
               if (!mounted) return;
               setState(() {
-                _modelLoaded = true; // Force proceed
+                _modelLoaded = true; 
                 _checkNavigate();
               });
             });
