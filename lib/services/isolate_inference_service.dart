@@ -37,6 +37,7 @@ class IsolateInferenceService {
       // Buat hasil prediction dengan confidence yang lebih realistis
       final prediction = PredictionModel(
         label: labels.isNotEmpty ? labels[0] : 'Unknown Food',
+        rawLabel: labels.isNotEmpty ? labels[0] : 'Unknown Food',
         confidence: confidence,
         index: 0,
       );

@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'dart:math';
 import 'dart:typed_data';
 import 'package:ai_food_recognizer_app/utils/app_logger.dart';
 import 'package:flutter/services.dart';
@@ -7,8 +6,7 @@ import 'package:tflite_flutter/tflite_flutter.dart';
 import 'package:ai_food_recognizer_app/models/prediction_model.dart';
 import 'package:ai_food_recognizer_app/utils/model_label_extractor.dart';
 import 'package:ai_food_recognizer_app/services/firebase_ml_service.dart';
-import 'package:image/image.dart' as img; // Import package image
-// Uncomment this when implementing real isolate functionality
+import 'package:image/image.dart' as img;
 import 'package:ai_food_recognizer_app/services/isolate_inference_service.dart';
 
 enum PredictionStatus { success, error }
@@ -197,13 +195,13 @@ class TfliteService {
       img.Image resizedImage =
           img.copyResize(originalImage, width: _inputSize, height: _inputSize);
 
-      // Konversi gambar ke Uint8List, bentuk input: [1, 192, 192, 3]
+      // --- PERBAIKAN: Menggunakan Uint8List Sesuai Tipe Data Model ---
+      // Model ini mengharapkan input Uint8 [0-255], bukan Float32 [-1, 1].
       var inputBuffer = Uint8List(1 * _inputSize * _inputSize * 3);
       int bufferIndex = 0;
       for (int y = 0; y < _inputSize; y++) {
         for (int x = 0; x < _inputSize; x++) {
           final pixel = resizedImage.getPixel(x, y);
-          // Menggunakan nilai RGB langsung (0-255)
           inputBuffer[bufferIndex++] = pixel.r.toInt();
           inputBuffer[bufferIndex++] = pixel.g.toInt();
           inputBuffer[bufferIndex++] = pixel.b.toInt();
@@ -213,7 +211,7 @@ class TfliteService {
       // Reshape inputBuffer menjadi tensor 4D yang benar: [1, 192, 192, 3]
       final input = inputBuffer.reshape([1, _inputSize, _inputSize, 3]);
       var outputTensor =
-          List.filled(1 * _numClasses, 0.0).reshape([1, _numClasses]);
+          List.filled(1 * _numClasses, 0).reshape([1, _numClasses]);
 
       // 3. Menjalankan Inferensi
       AppLogger.i('Menjalankan inferensi TFLite...');
@@ -226,10 +224,9 @@ class TfliteService {
       AppLogger.i('Inferensi selesai.');
 
       // 4. Memproses Output
-      // outputTensor[0] bisa berupa List<int> atau List<double>, konversi ke double
-      List<dynamic> rawOutput = outputTensor[0];
-      List<double> probabilities =
-          rawOutput.map((e) => e.toDouble()).toList().cast<double>();
+      // Output dari model uint8 biasanya juga uint8, yang perlu dinormalisasi ke double [0,1]
+      List<int> rawOutput = outputTensor[0].cast<int>();
+      List<double> probabilities = rawOutput.map((e) => e / 255.0).toList();
 
       AppLogger.i('Output tensor type: ${rawOutput.runtimeType}');
       AppLogger.i('First few probabilities: ${probabilities.take(5).toList()}');
@@ -238,110 +235,83 @@ class TfliteService {
       AppLogger.i(
           'Min probability: ${probabilities.reduce((a, b) => a < b ? a : b)}');
 
-      // Normalisasi menggunakan softmax jika diperlukan
-      double maxLogit = probabilities.reduce((a, b) => a > b ? a : b);
-      List<double> expValues =
-          probabilities.map((x) => exp(x - maxLogit)).toList();
-      double sumExp = expValues.reduce((a, b) => a + b);
-      List<double> normalizedProbs = expValues.map((x) => x / sumExp).toList();
+      // HAPUS: Normalisasi manual dengan softmax tidak diperlukan jika output model
+      // sudah merupakan probabilitas (umum untuk model klasifikasi uint8).
+      // double maxLogit = probabilities.reduce((a, b) => a > b ? a : b);
+      // List<double> expValues =
+      //     probabilities.map((x) => exp(x - maxLogit)).toList();
+      // double sumExp = expValues.reduce((a, b) => a + b);
+      // List<double> normalizedProbs = expValues.map((x) => x / sumExp).toList();
+      List<double> normalizedProbs =
+          probabilities; // Langsung gunakan probabilitas
 
-      double highestConfidence = 0.0;
-      int bestLabelIndex = -1;
-      List<int> topIndices = [];
-      List<double> topConfidences = [];
+      // --- LOGIKA DETEKSI BARU BERDASARKAN DISTRIBUSI PROBABILITAS ---
 
-      // Find top 3 confidences for comparison
-      List<MapEntry<int, double>> indexedProbs = [];
-      for (int i = 0; i < normalizedProbs.length; i++) {
-        indexedProbs.add(MapEntry(i, normalizedProbs[i]));
+      // 1. Dapatkan 3 prediksi teratas untuk analisis
+      List<MapEntry<int, double>> sortedProbs = normalizedProbs
+          .asMap()
+          .entries
+          .toList()
+        ..sort((a, b) => b.value.compareTo(a.value));
+
+      double maxProb = sortedProbs[0].value;
+      int maxIndex = sortedProbs[0].key;
+      double top2Prob = sortedProbs.length > 1 ? sortedProbs[1].value : 0.0;
+
+      // Lakukan null check pada _labels
+      if (_labels == null || maxIndex >= _labels!.length) {
+        return PredictionResult.error("Label tidak valid atau tidak ada.");
+      }
+      String rawLabel = _labels![maxIndex];
+
+      // 2. Tentukan ambang batas (threshold)
+      const double absoluteThreshold = 0.6;
+      const double relativeThreshold = 0.4;
+      double confidenceRatio = (maxProb > 0) ? (top2Prob / maxProb) : 1.0;
+
+      AppLogger.i('Max prob: $maxProb ($rawLabel), Top 2 prob: $top2Prob');
+      AppLogger.i('Confidence ratio (top2/top1): $confidenceRatio');
+
+      // 3. Logika penentuan "Bukan Makanan"
+      if (maxProb < absoluteThreshold || confidenceRatio > relativeThreshold) {
+        AppLogger.w(
+            'CLASSIFICATION: Not food. Reason: maxProb ($maxProb) < $absoluteThreshold OR ratio ($confidenceRatio) > $relativeThreshold');
+
+        // Buat instance PredictionModel untuk "Bukan makanan"
+        final nonFoodPrediction = PredictionModel(
+          label: 'Bukan makanan',
+          confidence: 1.0, // Confidence 100% untuk UI
+          index: -1, // Indeks khusus untuk non-makanan
+          rawLabel: 'Bukan makanan',
+          nutrition: null,
+          recipes: null,
+        );
+        return PredictionResult.success(nonFoodPrediction);
       }
 
-      // Sort by probability (descending)
-      indexedProbs.sort((a, b) => b.value.compareTo(a.value));
-
-      // Get top 3 indices and their confidences
-      for (int i = 0; i < min(3, indexedProbs.length); i++) {
-        topIndices.add(indexedProbs[i].key);
-        topConfidences.add(indexedProbs[i].value);
-      }
-
-      // Best label is the top one
-      bestLabelIndex = topIndices.isNotEmpty ? topIndices[0] : -1;
-      highestConfidence = topConfidences.isNotEmpty ? topConfidences[0] : 0.0;
-
-      // Calculate relative confidence - how much better is the best prediction compared to runner-up
-      double confidenceScore = highestConfidence;
-      if (topConfidences.length > 1 && topConfidences[1] > 0) {
-        // Relative confidence based on difference from second best prediction
-        // This approach focuses on the gap between top predictions
-        // A large gap suggests higher confidence because the model strongly favors one class
-        double diff = topConfidences[0] - topConfidences[1];
-
-        // Scale to create more variance in confidence scores
-        // Base confidence of 0.5 + a factor of the difference
-        // This ensures that even with small differences, we get reasonable confidence values
-        confidenceScore = 0.5 + (diff * 0.5);
-
-        // Add randomness factor for more realistic variation (between -0.15 and +0.05)
-        // Slight negative bias creates more variation in lower ranges
-        // This prevents confidence scores from always being too high
-        double randomFactor = (Random().nextDouble() * 0.20) - 0.15;
-        confidenceScore += randomFactor;
-      }
-
-      // Ensure confidence is within valid range
-      // Cap at 97% for realism - model should never be absolutely certain
-      confidenceScore = confidenceScore.clamp(0.0, 0.97);
-
+      // 4. Jika lolos, siapkan hasil seperti biasa
       AppLogger.i(
-          'Indeks terbaik: $bestLabelIndex, Kepercayaan normalized: $highestConfidence');
-      AppLogger.i('Kepercayaan adjusted: $confidenceScore');
-      AppLogger.i('Top 3 indices: $topIndices');
-      AppLogger.i('Top 3 confidences: $topConfidences');
+          'CLASSIFICATION: Food detected. Label: $rawLabel, Confidence: $maxProb');
 
-      if (bestLabelIndex != -1) {
-        String foodLabel;
-        if (_labels != null && bestLabelIndex < _labels!.length) {
-          // Get the raw label from our list
-          String rawLabel = _labels![bestLabelIndex];
+      // Dapatkan informasi nutrisi dan resep dari model label
+      final extractedInfo =
+          ModelLabelExtractor.extractNutritionAndRecipes(rawLabel);
+      String foodLabel = extractedInfo['foodName'] ?? 'Unknown Food';
 
-          // If the label appears to be a Knowledge Graph ID (starts with /g/ or is __background__),
-          // attempt to get a more readable label
-          if (rawLabel.startsWith('/g/') || rawLabel.startsWith('__')) {
-            try {
-              // Try to use the English label file for better human-readable labels
-              String betterLabel = ModelLabelExtractor.cleanupLabelId(rawLabel);
-              // Check if still using raw ID, try to find a proper name from label-en.txt
-              if (betterLabel == rawLabel) {
-                foodLabel = await ModelLabelExtractor.loadLabelFromIndexAsync(
-                    bestLabelIndex);
-              } else {
-                foodLabel = betterLabel;
-              }
-            } catch (e) {
-              AppLogger.i('Error getting better label: $e');
-              foodLabel = rawLabel; // Fallback to raw label
-            }
-          } else {
-            foodLabel = rawLabel; // Already human-readable
-          }
-        } else {
-          // If we don't have a label list or index is out of bounds
-          foodLabel = 'Unknown Food ($bestLabelIndex)';
-        }
+      final prediction = PredictionModel(
+        label: foodLabel,
+        confidence: maxProb,
+        nutrition: extractedInfo['nutrition'],
+        recipes: extractedInfo['recipes'],
+        rawLabel: rawLabel,
+        index: maxIndex,
+      );
 
-        return PredictionResult.success(PredictionModel(
-            label: foodLabel,
-            confidence: confidenceScore,
-            index: bestLabelIndex));
-      } else {
-        final msg = 'Gagal menemukan indeks label terbaik.';
-        AppLogger.i(msg);
-        return PredictionResult.error(msg);
-      }
-    } catch (e) {
-      final msg = 'Error selama inferensi TFLite: $e';
+      return PredictionResult.success(prediction);
+    } catch (e, stackTrace) {
+      final msg = 'Error saat prediksi: $e';
       AppLogger.i(msg);
+      AppLogger.i('Stack trace: $stackTrace');
       return PredictionResult.error(msg);
     }
   }
@@ -392,8 +362,11 @@ class TfliteService {
   }
 
   void dispose() {
-    _interpreter?.close();
-    _modelLoaded = false;
-    AppLogger.i('Interpreter TFLite ditutup.');
+    if (_interpreter != null) {
+      _interpreter!.close();
+      _interpreter = null;
+      _modelLoaded = false;
+      AppLogger.i('Interpreter TFLite ditutup.');
+    }
   }
 }

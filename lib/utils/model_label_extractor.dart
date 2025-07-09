@@ -1,5 +1,4 @@
 import 'dart:developer';
-import 'dart:io';
 import 'package:flutter/services.dart';
 
 class ModelLabelExtractor {
@@ -49,143 +48,56 @@ class ModelLabelExtractor {
         log('Gagal memuat labels_1.txt: $e');
       }
 
-      // If both dedicated label files failed, try the old approach with model-associated label file
-      try {
-        // Check jika ada file label.txt yang menyertai model
-        String labelPath;
-        if (modelPath.startsWith('assets/')) {
-          labelPath = modelPath.replaceAll('.tflite', '_labels.txt');
-        } else {
-          labelPath = '$modelPath.labels.txt'; // For files in device storage
-        }
-
-        String labelsContent;
-        try {
-          labelsContent = await rootBundle.loadString(labelPath);
-        } catch (e) {
-          // If asset loading failed and it's a file path, try to read from file
-          if (!modelPath.startsWith('assets/')) {
-            final labelFile = File(labelPath);
-            if (await labelFile.exists()) {
-              labelsContent = await labelFile.readAsString();
-            } else {
-              throw Exception('Label file not found');
-            }
-          } else {
-            rethrow;
-          }
-        }
-
-        if (labelsContent.isNotEmpty) {
-          final List<String> extractedLabels = labelsContent
-              .split('\n')
-              .where((label) => label.trim().isNotEmpty)
-              .toList();
-
-          if (extractedLabels.isNotEmpty) {
-            log('Berhasil mengekstrak ${extractedLabels.length} label dari file label.');
-            return extractedLabels;
-          }
-        }
-      } catch (e) {
-        log('Tidak menemukan file label terpisah: $e');
-      }
-
-      // If all approaches failed, use default labels
-      log('Semua pendekatan ekstraksi label gagal, menggunakan label default');
-      return ['Bukan makanan'];
+      log('Tidak ada file label yang dapat dimuat.');
+      return null;
     } catch (e) {
-      log('Error pada ekstraksi label: $e');
+      log('Error saat mengekstrak label: $e');
       return null;
     }
   }
 
-  // Fungsi ini mengembalikan label default ketika file label tidak dapat dimuat
-  // static List<String> getFoodLabels2024() {
-  //   // These are common food categories that might be in a 2024-class food recognition model
-  //   // This is a comprehensive list of food items organized by categories
-  //   return [
-  //     // Indonesian Foods
-  //     'Nasi Gudeg', 'Rendang', 'Gado-gado', 'Sate Ayam', 'Nasi Padang',
-  //     'Gudeg Jogja', 'Pecel Lele', 'Ayam Bakar', 'Ikan Bakar', 'Soto Ayam',
-  //     'Bakso', 'Mie Ayam', 'Nasi Goreng', 'Ayam Goreng', 'Bebek Goreng',
-  //     'Rawon', 'Rujak', 'Kerupuk', 'Tempe Goreng', 'Tahu Goreng',
-
-  //     // International Foods
-  //     'Pizza Margherita', 'Pizza Pepperoni', 'Hamburger', 'Cheeseburger',
-  //     'Hot Dog', 'Pasta Carbonara', 'Pasta Bolognese', 'Spaghetti',
-  //     'Fried Chicken', 'Grilled Chicken', 'Chicken Wings', 'Fish and Chips',
-  //     'Steak', 'Pork Chops', 'Lamb Curry', 'Beef Stew',
-
-  //     // Asian Foods
-  //     'Sushi', 'Ramen', 'Pad Thai', 'Fried Rice', 'Spring Rolls',
-  //     'Dim Sum', 'Dumplings', 'Pho', 'Tom Yum', 'Green Curry',
-  //     'Red Curry', 'Bibimbap', 'Kimchi', 'Bulgogi', 'Teriyaki',
-
-  //     // Breakfast Items
-  //     'Pancakes', 'Waffles', 'French Toast', 'Eggs Benedict', 'Omelette',
-  //     'Scrambled Eggs', 'Fried Eggs', 'Cereal', 'Oatmeal', 'Yogurt',
-  //     'Croissant', 'Bagel', 'Toast', 'Bacon', 'Sausage',
-
-  //     // Default placeholder untuk sisa kelas
-  //     'Unknown Food', 'Generic Food Item',
-  //   ];
-  // }
-
-  // Mendapatkan nama makanan yang bisa dibaca manusia dari ID label
-  static Object getHumanReadableLabel(String labelId, int classIndex) {
-    // Jika labelId dimulai dengan /g/, bisa jadi itu adalah Knowledge Graph ID
-    if (labelId.startsWith('/g/') || labelId.startsWith('__')) {
-      try {
-        // Coba ambil label dari file label-en.txt berdasarkan indeks kelas
-        return loadLabelFromIndexAsync(classIndex);
-      } catch (e) {
-        return 'Unknown Food ($classIndex)';
-      }
-    }
-    return labelId; // Jika labelnya sudah dalam bentuk yang bisa dibaca
-  }
-
-  // Fungsi untuk memuat label berdasarkan indeks dari file label secara asinkron
-  static Future<String> loadLabelFromIndexAsync(int index) async {
+  /// Extracts food name, nutrition, and recipes from a raw label string.
+  static Map<String, dynamic> extractNutritionAndRecipes(String rawLabel) {
+    // Example rawLabel: "0 Apple pie~calories: 237, fat: 11g, carbs: 34g, protein: 2g~recipe: Bake at 350F for 40 mins."
     try {
-      // Coba muat dari label bahasa Inggris
-      final labelsContent = await rootBundle.loadString(_labelPathEn);
-      final labels = labelsContent
-          .split('\n')
-          .where((label) => label.trim().isNotEmpty)
-          .toList();
+      final parts = rawLabel.split('~');
+      final foodNamePart = parts[0];
+      final foodName =
+          foodNamePart.replaceAll(RegExp(r'^\d+\s*'), '').trim(); // Remove leading number and trim
 
-      if (index >= 0 && index < labels.length) {
-        return labels[index];
+      Map<String, dynamic> nutrition = {};
+      if (parts.length > 1 && parts[1].isNotEmpty) {
+        final nutritionParts = parts[1].split(',');
+        for (var part in nutritionParts) {
+          final keyValue = part.split(':');
+          if (keyValue.length == 2) {
+            nutrition[keyValue[0].trim()] = keyValue[1].trim();
+          }
+        }
       }
+
+      List<String> recipes = [];
+      if (parts.length > 2 && parts[2].isNotEmpty) {
+        recipes = parts[2]
+            .split(';')
+            .map((e) => e.trim())
+            .where((e) => e.isNotEmpty)
+            .toList();
+      }
+
+      return {
+        'foodName': foodName,
+        'nutrition': nutrition.isNotEmpty ? nutrition : null,
+        'recipes': recipes.isNotEmpty ? recipes : null,
+      };
     } catch (e) {
-      log('Error loading label by index: $e');
+      log('Error parsing raw label "$rawLabel": $e');
+      // Return the raw label as the food name if parsing fails
+      return {
+        'foodName': rawLabel.replaceAll(RegExp(r'^\d+\s*'), '').trim(),
+        'nutrition': null,
+        'recipes': null,
+      };
     }
-
-    return 'Unknown Food ($index)';
-  }
-
-  // Fungsi untuk memuat label berdasarkan indeks dari file label
-  static String loadLabelFromIndex(int index, List<String> labels) {
-    if (index >= 0 && index < labels.length) {
-      return labels[index];
-    }
-    return 'Unknown Food ($index)';
-  }
-
-  // Fungsi utilitas untuk mengonversi berbagai format label
-  static String cleanupLabelId(String labelId) {
-    // Jika label adalah Knowledge Graph ID, hapus prefix
-    if (labelId.startsWith('/g/')) {
-      return labelId.replaceFirst('/g/', '').replaceAll('_', ' ');
-    }
-
-    // Jika label adalah background atau placeholder, berikan nama yang lebih deskriptif
-    if (labelId == '__background__') {
-      return 'Background (Non-food)';
-    }
-
-    return labelId;
   }
 }

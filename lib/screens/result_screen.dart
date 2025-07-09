@@ -14,7 +14,7 @@ class ResultScreen extends StatelessWidget {
     required this.imageFile,
     required this.prediction,
   });
-  
+
   // Helper method to get a description based on confidence level
   String _getConfidenceDescription(double confidence) {
     if (confidence > 0.85) {
@@ -32,8 +32,10 @@ class ResultScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final bool isFood = prediction.label != 'Bukan makanan';
+
     return DefaultTabController(
-      length: 2,
+      length: isFood ? 2 : 0,
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Hasil Prediksi'),
@@ -52,9 +54,10 @@ class ResultScreen extends StatelessWidget {
                     children: [
                       Text(
                         'Gambar Asli:',
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
+                        style:
+                            Theme.of(context).textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                ),
                       ),
                       const SizedBox(height: 8),
                       Container(
@@ -63,7 +66,7 @@ class ResultScreen extends StatelessWidget {
                           borderRadius: BorderRadius.circular(12),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withValues(alpha:0.1),
+                              color: Colors.black.withValues(alpha: 0.1),
                               blurRadius: 8,
                               offset: const Offset(0, 2),
                             ),
@@ -79,7 +82,7 @@ class ResultScreen extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: 16),
-                      
+
                       // Prediksi Card
                       Card(
                         elevation: 4,
@@ -93,23 +96,30 @@ class ResultScreen extends StatelessWidget {
                             children: [
                               Row(
                                 children: [
-                                  Icon(Icons.restaurant, color: Colors.green[600]),
+                                  Icon(Icons.restaurant,
+                                      color: Colors.green[600]),
                                   const SizedBox(width: 8),
                                   Text(
                                     'Prediksi Makanan:',
-                                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                      fontWeight: FontWeight.bold,
-                                    ),
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .titleMedium
+                                        ?.copyWith(
+                                          fontWeight: FontWeight.bold,
+                                        ),
                                   ),
                                 ],
                               ),
                               const SizedBox(height: 12),
                               Text(
                                 prediction.label,
-                                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.green[700],
-                                ),
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .headlineSmall
+                                    ?.copyWith(
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.green[700],
+                                    ),
                               ),
                               const SizedBox(height: 8),
                               Column(
@@ -117,112 +127,147 @@ class ResultScreen extends StatelessWidget {
                                 children: [
                                   Row(
                                     children: [
-                                      Icon(Icons.verified, color: Colors.blue[600], size: 20),
+                                      Icon(Icons.verified,
+                                          color: Colors.blue[600], size: 20),
                                       const SizedBox(width: 8),
                                       Text(
                                         'Tingkat Kepercayaan: ${(prediction.confidence * 100).toStringAsFixed(1)}%',
-                                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                          color: Colors.blue[700],
-                                          fontWeight: FontWeight.w600,
-                                        ),
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .titleMedium
+                                            ?.copyWith(
+                                              color: Colors.blue[700],
+                                              fontWeight: FontWeight.w600,
+                                            ),
                                       ),
                                     ],
                                   ),
                                   const SizedBox(height: 8),
                                   // Confidence bar visualization
-                                  Container(
-                                    width: double.infinity,
-                                    height: 8,
-                                    decoration: BoxDecoration(
-                                      color: Colors.grey[200],
-                                      borderRadius: BorderRadius.circular(10),
-                                    ),
-                                    child: FractionallySizedBox(
-                                      alignment: Alignment.centerLeft,
-                                      widthFactor: prediction.confidence,
-                                      child: Container(
-                                        decoration: BoxDecoration(
-                                          gradient: LinearGradient(
-                                            colors: [
-                                              if (prediction.confidence < 0.5)
-                                                Colors.orange
-                                              else if (prediction.confidence < 0.7)
-                                                Colors.yellow
-                                              else
-                                                Colors.green[300]!,
-                                              if (prediction.confidence < 0.5)
-                                                Colors.red
-                                              else if (prediction.confidence < 0.7)
-                                                Colors.orange
-                                              else
-                                                Colors.green,
-                                            ],
+                                  if (isFood)
+                                    Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        LinearProgressIndicator(
+                                          value: prediction.confidence,
+                                          backgroundColor: Colors.grey[300],
+                                          valueColor:
+                                              AlwaysStoppedAnimation<Color>(
+                                            _getConfidenceColor(
+                                                prediction.confidence),
                                           ),
-                                          borderRadius: BorderRadius.circular(10),
+                                          minHeight: 8,
                                         ),
+                                        const SizedBox(height: 4),
+                                        // Confidence level description
+                                        Text(
+                                          _getConfidenceDescription(
+                                              prediction.confidence),
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            fontStyle: FontStyle.italic,
+                                            color: prediction.confidence > 0.7
+                                                ? Colors.grey[700]
+                                                : Colors.grey[600],
+                                          ),
+                                        ),
+                                      ],
+                                    )
+                                  else
+                                    // Pesan untuk item "Bukan Makanan"
+                                    Container(
+                                      padding: const EdgeInsets.all(12),
+                                      decoration: BoxDecoration(
+                                        color: Colors.blueGrey[50],
+                                        borderRadius:
+                                            BorderRadius.circular(8),
+                                      ),
+                                      child: Row(
+                                        children: [
+                                          Icon(Icons.info_outline,
+                                              color: Colors.blueGrey[700]),
+                                          const SizedBox(width: 10),
+                                          const Expanded(
+                                            child: Text(
+                                              'Gambar ini tidak terdeteksi sebagai makanan.',
+                                              style: TextStyle(
+                                                  fontWeight:
+                                                      FontWeight.w500),
+                                            ),
+                                          ),
+                                        ],
                                       ),
                                     ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  // Confidence level description
-                                  Text(
-                                    _getConfidenceDescription(prediction.confidence),
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      fontStyle: FontStyle.italic,
-                                      color: prediction.confidence > 0.7 ? Colors.green[700] : 
-                                             prediction.confidence > 0.5 ? Colors.orange[700] : Colors.red[700],
-                                    ),
-                                  ),
                                 ],
                               ),
                             ],
                           ),
                         ),
                       ),
-                      
-                      // Tambahkan deskripsi makanan dari Gemini
-                      FoodDescription(foodName: prediction.label),
+
+                      // Food Description (Gemini)
+                      if (isFood)
+                        FoodDescription(
+                          foodName: prediction.label,
+                        ),
+
+                      const SizedBox(height: 16),
                     ],
                   ),
                 ),
               ),
-              SliverPersistentHeader(
-                delegate: _SliverTabBarDelegate(
-                  TabBar(
-                    labelColor: Colors.green[700],
-                    unselectedLabelColor: Colors.grey[600],
-                    indicatorColor: Colors.green[700],
-                    tabs: const [
-                      Tab(
-                        icon: Icon(Icons.food_bank_outlined),
-                        text: 'Nutrisi',
-                      ),
-                      Tab(
-                        icon: Icon(Icons.receipt_long_outlined),
-                        text: 'Resep',
-                      ),
-                    ],
+              if (isFood)
+                SliverPersistentHeader(
+                  delegate: _SliverAppBarDelegate(
+                    TabBar(
+                      tabs: const [
+                        Tab(icon: Icon(Icons.food_bank), text: 'Nutrisi'),
+                        Tab(icon: Icon(Icons.receipt), text: 'Resep'),
+                      ],
+                      labelColor: Colors.green[700],
+                      unselectedLabelColor: Colors.grey[600],
+                      indicatorColor: Colors.green,
+                    ),
                   ),
+                  pinned: true,
                 ),
-                pinned: true,
-              ),
             ];
           },
-          body: TabBarView(
-            children: [
-              NutritionTab(foodName: prediction.label),
-              RecipeTab(foodName: prediction.label),
-            ],
-          ),
+          body: isFood
+              ? TabBarView(
+                  children: [
+                    // Nutrition Tab
+                    NutritionTab(nutrition: prediction.nutrition ?? const {}),
+
+                    // Recipe Tab
+                    RecipeTab(recipes: prediction.recipes ?? const []),
+                  ],
+                )
+              : const Center(
+                  child: Padding(
+                  padding: EdgeInsets.all(20.0),
+                  child: Text(
+                    'Tidak ada detail nutrisi atau resep untuk item ini.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 16, color: Colors.grey),
+                  ),
+                )),
         ),
       ),
     );
   }
+
+  Color _getConfidenceColor(double confidence) {
+    if (confidence > 0.85) return Colors.green;
+    if (confidence > 0.7) return Colors.lightGreen;
+    if (confidence > 0.5) return Colors.amber;
+    return Colors.red;
+  }
 }
 
-class _SliverTabBarDelegate extends SliverPersistentHeaderDelegate {
-  _SliverTabBarDelegate(this._tabBar);
+class _SliverAppBarDelegate extends SliverPersistentHeaderDelegate {
+  _SliverAppBarDelegate(this._tabBar);
 
   final TabBar _tabBar;
 
@@ -232,7 +277,8 @@ class _SliverTabBarDelegate extends SliverPersistentHeaderDelegate {
   double get maxExtent => _tabBar.preferredSize.height;
 
   @override
-  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
+  Widget build(
+      BuildContext context, double shrinkOffset, bool overlapsContent) {
     return Container(
       color: Colors.white,
       child: _tabBar,
@@ -240,7 +286,7 @@ class _SliverTabBarDelegate extends SliverPersistentHeaderDelegate {
   }
 
   @override
-  bool shouldRebuild(_SliverTabBarDelegate oldDelegate) {
+  bool shouldRebuild(_SliverAppBarDelegate oldDelegate) {
     return false;
   }
 }
@@ -259,16 +305,24 @@ class _FoodDescriptionState extends State<FoodDescription> {
   final GeminiApiService _geminiService = GeminiApiService();
   String? _description;
   bool _isLoading = true;
-  
+
   @override
   void initState() {
     super.initState();
-    _loadDescription();
+    if (widget.foodName != 'Bukan makanan') {
+      _loadDescription();
+    } else {
+      setState(() {
+        _isLoading = false;
+        _description = 'Objek ini tidak dikenali sebagai makanan.';
+      });
+    }
   }
-  
+
   Future<void> _loadDescription() async {
     try {
-      final description = await _geminiService.getFoodDescription(widget.foodName);
+      final description =
+          await _geminiService.getFoodDescription(widget.foodName);
       setState(() {
         _description = description;
         _isLoading = false;
@@ -280,7 +334,7 @@ class _FoodDescriptionState extends State<FoodDescription> {
       });
     }
   }
-  
+
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
@@ -291,7 +345,11 @@ class _FoodDescriptionState extends State<FoodDescription> {
         ),
       );
     }
-    
+
+    if (widget.foodName == 'Bukan makanan') {
+      return Container(); // Jangan tampilkan kartu deskripsi
+    }
+
     return Card(
       elevation: 2,
       margin: const EdgeInsets.only(top: 16),
@@ -310,9 +368,9 @@ class _FoodDescriptionState extends State<FoodDescription> {
                 Text(
                   'Tentang Makanan Ini:',
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: Colors.orange[700],
-                  ),
+                        fontWeight: FontWeight.bold,
+                        color: Colors.orange[700],
+                      ),
                 ),
               ],
             ),
