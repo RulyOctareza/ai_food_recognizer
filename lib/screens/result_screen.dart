@@ -1,9 +1,9 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:ai_food_recognizer_app/models/prediction_model.dart';
-import 'package:ai_food_recognizer_app/widgets/nutrition_tab.dart';
-import 'package:ai_food_recognizer_app/widgets/recipe_tab.dart';
-import 'package:ai_food_recognizer_app/api/gemini_api_service.dart';
+import '../api/gemini_api_service.dart';
+import '../models/prediction_model.dart';
+import '../widgets/nutrition_tab.dart';
+import '../widgets/recipe_tab.dart';
 
 class ResultScreen extends StatelessWidget {
   final File imageFile;
@@ -33,9 +33,20 @@ class ResultScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bool isFood = prediction.label != 'Bukan makanan';
+    final foodName = prediction.label;
+
+    final List<Widget> tabs = [];
+    final List<Widget> tabViews = [];
+
+    if (isFood) {
+      tabs.add(const Tab(icon: Icon(Icons.food_bank), text: 'Nutrisi'));
+      tabViews.add(NutritionTab(foodName: foodName));
+      tabs.add(const Tab(icon: Icon(Icons.receipt), text: 'Resep'));
+      tabViews.add(RecipeTab(foodName: foodName));
+    }
 
     return DefaultTabController(
-      length: isFood ? 2 : 0,
+      length: tabs.length,
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Hasil Prediksi'),
@@ -180,8 +191,7 @@ class ResultScreen extends StatelessWidget {
                                       padding: const EdgeInsets.all(12),
                                       decoration: BoxDecoration(
                                         color: Colors.blueGrey[50],
-                                        borderRadius:
-                                            BorderRadius.circular(8),
+                                        borderRadius: BorderRadius.circular(8),
                                       ),
                                       child: Row(
                                         children: [
@@ -192,8 +202,7 @@ class ResultScreen extends StatelessWidget {
                                             child: Text(
                                               'Gambar ini tidak terdeteksi sebagai makanan.',
                                               style: TextStyle(
-                                                  fontWeight:
-                                                      FontWeight.w500),
+                                                  fontWeight: FontWeight.w500),
                                             ),
                                           ),
                                         ],
@@ -217,14 +226,11 @@ class ResultScreen extends StatelessWidget {
                   ),
                 ),
               ),
-              if (isFood)
+              if (isFood && tabs.isNotEmpty)
                 SliverPersistentHeader(
                   delegate: _SliverAppBarDelegate(
                     TabBar(
-                      tabs: const [
-                        Tab(icon: Icon(Icons.food_bank), text: 'Nutrisi'),
-                        Tab(icon: Icon(Icons.receipt), text: 'Resep'),
-                      ],
+                      tabs: tabs,
                       labelColor: Colors.green[700],
                       unselectedLabelColor: Colors.grey[600],
                       indicatorColor: Colors.green,
@@ -235,24 +241,33 @@ class ResultScreen extends StatelessWidget {
             ];
           },
           body: isFood
-              ? TabBarView(
-                  children: [
-                    // Nutrition Tab
-                    NutritionTab(nutrition: prediction.nutrition ?? const {}),
-
-                    // Recipe Tab
-                    RecipeTab(recipes: prediction.recipes ?? const []),
-                  ],
-                )
-              : const Center(
+              ? TabBarView(children: tabViews)
+              : Center(
                   child: Padding(
-                  padding: EdgeInsets.all(20.0),
-                  child: Text(
-                    'Tidak ada detail nutrisi atau resep untuk item ini.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 16, color: Colors.grey),
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.warning_amber_rounded,
+                            size: 60, color: Colors.orange),
+                        const SizedBox(height: 20),
+                        const Text(
+                          'Objek yang dideteksi sepertinya bukan makanan.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                              fontSize: 18, fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(height: 10),
+                        Text(
+                          _getConfidenceDescription(prediction.confidence),
+                          textAlign: TextAlign.center,
+                          style:
+                              TextStyle(fontSize: 16, color: Colors.grey[600]),
+                        ),
+                      ],
+                    ),
                   ),
-                )),
+                ),
         ),
       ),
     );
@@ -292,97 +307,81 @@ class _SliverAppBarDelegate extends SliverPersistentHeaderDelegate {
 }
 
 // FoodDescription Widget yang menggunakan Gemini API
-class FoodDescription extends StatefulWidget {
+class FoodDescription extends StatelessWidget {
   final String foodName;
-
-  const FoodDescription({super.key, required this.foodName});
-
-  @override
-  State<FoodDescription> createState() => _FoodDescriptionState();
-}
-
-class _FoodDescriptionState extends State<FoodDescription> {
   final GeminiApiService _geminiService = GeminiApiService();
-  String? _description;
-  bool _isLoading = true;
 
-  @override
-  void initState() {
-    super.initState();
-    if (widget.foodName != 'Bukan makanan') {
-      _loadDescription();
-    } else {
-      setState(() {
-        _isLoading = false;
-        _description = 'Objek ini tidak dikenali sebagai makanan.';
-      });
-    }
-  }
-
-  Future<void> _loadDescription() async {
-    try {
-      final description =
-          await _geminiService.getFoodDescription(widget.foodName);
-      setState(() {
-        _description = description;
-        _isLoading = false;
-      });
-    } catch (e) {
-      setState(() {
-        _description = 'Tidak dapat memuat deskripsi makanan.';
-        _isLoading = false;
-      });
-    }
-  }
+  FoodDescription({super.key, required this.foodName});
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoading) {
-      return const Center(
-        child: Padding(
-          padding: EdgeInsets.all(16.0),
-          child: CircularProgressIndicator(),
-        ),
-      );
-    }
-
-    if (widget.foodName == 'Bukan makanan') {
+    if (foodName == 'Bukan makanan') {
       return Container(); // Jangan tampilkan kartu deskripsi
     }
 
-    return Card(
-      elevation: 2,
-      margin: const EdgeInsets.only(top: 16),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
+    return FutureBuilder<String?>(
+      future: _geminiService.getFoodDescription(foodName),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(
+            child: Padding(
+              padding: EdgeInsets.all(16.0),
+              child: CircularProgressIndicator(),
+            ),
+          );
+        }
+
+        if (snapshot.hasError || !snapshot.hasData || snapshot.data!.isEmpty) {
+          return Card(
+            elevation: 2,
+            margin: const EdgeInsets.only(top: 16),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Padding(
+              padding: EdgeInsets.all(16.0),
+              child: Text('Tidak dapat memuat deskripsi makanan.'),
+            ),
+          );
+        }
+
+        final description = snapshot.data!;
+
+        return Card(
+          elevation: 2,
+          margin: const EdgeInsets.only(top: 16),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(Icons.description, color: Colors.orange[700]),
-                const SizedBox(width: 8),
+                Row(
+                  children: [
+                    Icon(Icons.description, color: Colors.orange[700]),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Tentang Makanan Ini:',
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.orange[700],
+                          ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
                 Text(
-                  'Tentang Makanan Ini:',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: Colors.orange[700],
-                      ),
+                  description,
+                  style: Theme.of(context).textTheme.bodyMedium,
+                  textAlign: TextAlign.justify,
                 ),
               ],
             ),
-            const SizedBox(height: 12),
-            Text(
-              _description ?? 'Deskripsi tidak tersedia.',
-              style: Theme.of(context).textTheme.bodyMedium,
-              textAlign: TextAlign.justify,
-            ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 }

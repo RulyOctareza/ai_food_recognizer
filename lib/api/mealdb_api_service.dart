@@ -2,11 +2,11 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:ai_food_recognizer_app/models/recipe_model.dart';
 import 'dart:developer';
+
 class MealDbApiService {
   static const String _baseUrl = 'https://www.themealdb.com/api/json/v1/1';
 
-
-  Future<List<RecipeModel>?> searchRecipesByName(String foodName) async {
+  Future<List<RecipeModel>?> searchRecipes(String foodName) async {
     try {
       // Bersihkan nama makanan untuk pencarian
       String cleanFoodName = _cleanFoodName(foodName);

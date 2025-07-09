@@ -2,6 +2,7 @@ import 'dart:developer';
 
 import 'package:google_generative_ai/google_generative_ai.dart';
 import 'package:ai_food_recognizer_app/models/nutrition_model.dart';
+
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class GeminiApiService {
@@ -30,7 +31,7 @@ class GeminiApiService {
     }
   }
 
-  Future<NutritionModel?> getNutritionInfo(String foodName) async {
+  Future<NutritionInfo?> getNutritionInfo(String foodName) async {
     try {
       // Buat prompt yang spesifik untuk mendapatkan informasi nutrisi
       final prompt = '''
@@ -73,8 +74,8 @@ Berikan jawaban yang akurat dan berdasarkan data nutrisi yang valid.
         });
 
         if (response.text != null && response.text!.isNotEmpty) {
-          log('Respons Gemini API berhasil diterima');
-          return NutritionModel.fromGeminiResponse(response.text!, foodName);
+          log('Respons Gemini API berhasil diterima. Teks mentah:\n${response.text}');
+          return NutritionInfo.fromText(response.text!);
         } else {
           log('Respons Gemini API kosong');
           return null;

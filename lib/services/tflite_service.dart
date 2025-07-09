@@ -293,16 +293,13 @@ class TfliteService {
       AppLogger.i(
           'CLASSIFICATION: Food detected. Label: $rawLabel, Confidence: $maxProb');
 
-      // Dapatkan informasi nutrisi dan resep dari model label
-      final extractedInfo =
-          ModelLabelExtractor.extractNutritionAndRecipes(rawLabel);
-      String foodLabel = extractedInfo['foodName'] ?? 'Unknown Food';
-
+      // Info nutrisi dan resep tidak lagi diekstrak di sini.
+      // Cukup teruskan nama makanan mentah dari label.
       final prediction = PredictionModel(
-        label: foodLabel,
+        label: rawLabel, // Langsung gunakan rawLabel
         confidence: maxProb,
-        nutrition: extractedInfo['nutrition'],
-        recipes: extractedInfo['recipes'],
+        nutrition: null, // Akan diambil oleh UI
+        recipes: null, // Akan diambil oleh UI
         rawLabel: rawLabel,
         index: maxIndex,
       );

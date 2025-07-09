@@ -55,49 +55,4 @@ class ModelLabelExtractor {
       return null;
     }
   }
-
-  /// Extracts food name, nutrition, and recipes from a raw label string.
-  static Map<String, dynamic> extractNutritionAndRecipes(String rawLabel) {
-    // Example rawLabel: "0 Apple pie~calories: 237, fat: 11g, carbs: 34g, protein: 2g~recipe: Bake at 350F for 40 mins."
-    try {
-      final parts = rawLabel.split('~');
-      final foodNamePart = parts[0];
-      final foodName =
-          foodNamePart.replaceAll(RegExp(r'^\d+\s*'), '').trim(); // Remove leading number and trim
-
-      Map<String, dynamic> nutrition = {};
-      if (parts.length > 1 && parts[1].isNotEmpty) {
-        final nutritionParts = parts[1].split(',');
-        for (var part in nutritionParts) {
-          final keyValue = part.split(':');
-          if (keyValue.length == 2) {
-            nutrition[keyValue[0].trim()] = keyValue[1].trim();
-          }
-        }
-      }
-
-      List<String> recipes = [];
-      if (parts.length > 2 && parts[2].isNotEmpty) {
-        recipes = parts[2]
-            .split(';')
-            .map((e) => e.trim())
-            .where((e) => e.isNotEmpty)
-            .toList();
-      }
-
-      return {
-        'foodName': foodName,
-        'nutrition': nutrition.isNotEmpty ? nutrition : null,
-        'recipes': recipes.isNotEmpty ? recipes : null,
-      };
-    } catch (e) {
-      log('Error parsing raw label "$rawLabel": $e');
-      // Return the raw label as the food name if parsing fails
-      return {
-        'foodName': rawLabel.replaceAll(RegExp(r'^\d+\s*'), '').trim(),
-        'nutrition': null,
-        'recipes': null,
-      };
-    }
-  }
 }

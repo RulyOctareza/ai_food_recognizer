@@ -7,7 +7,7 @@ class PredictionModel {
   final List<String>? recipes;
 
   PredictionModel({
-    required this.label, 
+    required this.label,
     required this.confidence,
     required this.index,
     required this.rawLabel,
