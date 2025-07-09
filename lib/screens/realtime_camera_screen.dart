@@ -43,7 +43,9 @@ class _RealTimeCameraScreenState extends State<RealTimeCameraScreen> {
     _timer = Timer.periodic(const Duration(milliseconds: 400), (_) async {
       if (_cameraController == null ||
           !_cameraController!.value.isInitialized ||
-          _isDetecting) return;
+          _isDetecting) {
+        return;
+      }
       _isDetecting = true;
       try {
         final image = await _cameraController!.takePicture();
@@ -94,7 +96,7 @@ class _RealTimeCameraScreenState extends State<RealTimeCameraScreen> {
                 Align(
                   alignment: Alignment.bottomCenter,
                   child: Container(
-                    color: Colors.black.withOpacity(0.7),
+                    color: Colors.black.withValues(alpha: .7),
                     padding: const EdgeInsets.symmetric(
                         vertical: 16, horizontal: 24),
                     child: Row(

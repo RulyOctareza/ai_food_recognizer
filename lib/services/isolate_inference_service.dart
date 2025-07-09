@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:ai_food_recognizer_app/models/prediction_model.dart';
 import 'package:ai_food_recognizer_app/utils/app_logger.dart';
@@ -43,7 +42,8 @@ Future<PredictionModel?> _inferenceFunction(
     final resizedImage = img.copyResize(originalImage,
         width: isolateData.inputSize, height: isolateData.inputSize);
 
-    var inputBuffer = Uint8List(1 * isolateData.inputSize * isolateData.inputSize * 3);
+    var inputBuffer =
+        Uint8List(1 * isolateData.inputSize * isolateData.inputSize * 3);
     int bufferIndex = 0;
     for (int y = 0; y < isolateData.inputSize; y++) {
       for (int x = 0; x < isolateData.inputSize; x++) {
@@ -54,8 +54,8 @@ Future<PredictionModel?> _inferenceFunction(
       }
     }
 
-    final input =
-        inputBuffer.reshape([1, isolateData.inputSize, isolateData.inputSize, 3]);
+    final input = inputBuffer
+        .reshape([1, isolateData.inputSize, isolateData.inputSize, 3]);
     var output = List.filled(1 * isolateData.numClasses, 0)
         .reshape([1, isolateData.numClasses]);
 
@@ -66,9 +66,11 @@ Future<PredictionModel?> _inferenceFunction(
     List<int> rawOutput = output[0].cast<int>();
     List<double> probabilities = rawOutput.map((e) => e / 255.0).toList();
 
-    List<MapEntry<int, double>> sortedProbs =
-        probabilities.asMap().entries.toList()
-          ..sort((a, b) => b.value.compareTo(a.value));
+    List<MapEntry<int, double>> sortedProbs = probabilities
+        .asMap()
+        .entries
+        .toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
 
     double maxProb = sortedProbs[0].value;
     int maxIndex = sortedProbs[0].key;
@@ -106,7 +108,7 @@ Future<PredictionModel?> _inferenceFunction(
 
 // Service untuk menjalankan TFLite inference di background isolate
 class IsolateInferenceService {
-  static bool _isRunning = false;
+  static final bool _isRunning = false;
 
   /// Jalankan inference di background isolate menggunakan compute.
   static Future<PredictionModel?> runInference(

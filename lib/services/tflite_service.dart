@@ -350,7 +350,8 @@ class TfliteService {
       );
 
       // Jalankan inference di background isolate
-      final prediction = await IsolateInferenceService.runInference(isolateData);
+      final prediction =
+          await IsolateInferenceService.runInference(isolateData);
 
       if (prediction != null) {
         return PredictionResult.success(prediction);

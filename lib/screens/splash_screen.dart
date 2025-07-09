@@ -105,6 +105,7 @@ class _SplashScreenState extends State<SplashScreen>
             ModelDiagnosticUtil.runDiagnostics().then((diagnostics) {
               log('Post-failure diagnostics:\n$diagnostics');
               // Tampilkan hasil diagnosa ke user
+              if (!mounted) return;
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
                   content: Text('Diagnosa: $diagnostics'),
