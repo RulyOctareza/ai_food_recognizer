@@ -6,6 +6,7 @@ import 'package:ai_food_recognizer_app/models/prediction_model.dart';
 import 'result_screen.dart';
 import 'camera_screen.dart';
 import 'dart:developer';
+import 'realtime_camera_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -282,6 +283,26 @@ class _HomeScreenState extends State<HomeScreen> {
                                       MaterialPageRoute(
                                         builder: (context) =>
                                             const CameraScreen(),
+                                      ),
+                                    );
+                                  },
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: _buildOptionButton(
+                            icon: Icons.videocam,
+                            title: 'Realtime',
+                            description: 'Deteksi makanan realtime',
+                            color: Colors.green,
+                            onTap: _isLoading
+                                ? null
+                                : () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) =>
+                                            const RealTimeCameraScreen(),
                                       ),
                                     );
                                   },
