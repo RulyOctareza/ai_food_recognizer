@@ -340,12 +340,18 @@ class TfliteService {
       AppLogger.i(
           'Memulai prediksi gambar menggunakan TFLite di background...');
 
-      // Jalankan inference di background isolate
-      final prediction = await IsolateInferenceService.runInference(
+      // Siapkan data untuk dikirim ke isolate
+      final isolateData = IsolateInferenceData(
         imagePath: imageFile.path,
         modelPath: modelPath,
         labels: _labels ?? [],
+        inputSize: _inputSize,
+        numClasses: _numClasses,
       );
+
+      // Jalankan inference di background isolate
+      final prediction = await IsolateInferenceService.runInference(isolateData);
+
       if (prediction != null) {
         return PredictionResult.success(prediction);
       } else {
