@@ -1,203 +1,97 @@
-# AI Food Recognizer App
+<p align="center">
+  <img src="docs/preview/hero.png" alt="AI Food Recognizer — ilustrasi aplikasi pengenal makanan" width="100%">
+</p>
 
-<div align="center">
+<h1 align="center">AI Food Recognizer</h1>
 
-![AI Food Recognizer App Logo](screenshoots/image.png)
+<p align="center">
+  <b>Foto makanannya, dapat resep dan nutrisinya.</b><br>
+  TensorFlow Lite di perangkat + Gemini untuk detail yang lebih kaya.
+</p>
 
-[![Flutter](https://img.shields.io/badge/Flutter-3.x-blue?logo=flutter)](https://flutter.dev/)
-[![TensorFlow Lite](https://img.shields.io/badge/TensorFlow_Lite-2.x-orange?logo=tensorflow)](https://www.tensorflow.org/lite)
-[![Gemini API](https://img.shields.io/badge/Gemini_API-2.0-green?logo=google)](https://ai.google.dev/)
-[![License](https://img.shields.io/badge/License-MIT-yellow)](LICENSE)
+<p align="center">
+  <a href="https://flutter.dev"><img alt="Flutter" src="https://img.shields.io/badge/Flutter-3.x-02569B?logo=flutter&logoColor=white"></a>
+  <a href="https://www.tensorflow.org/lite"><img alt="TFLite" src="https://img.shields.io/badge/TensorFlow%20Lite-2.x-FF6F00?logo=tensorflow&logoColor=white"></a>
+  <img alt="Gemini" src="https://img.shields.io/badge/Gemini-API-1A73E8?logo=google&logoColor=white">
+  <img alt="State" src="https://img.shields.io/badge/State-BLoC-2496ED">
+</p>
 
-</div>
+---
 
-A Flutter application that recognizes food from images using TensorFlow Lite and provides recipe and nutrition information. The app combines on-device machine learning with cloud-based AI for comprehensive food details.
+## ✨ Preview
 
-## Features
+<p align="center">
+  <img src="docs/preview/hero.png" alt="Mockup gelap AI Food Recognizer" width="90%">
+</p>
 
-- **Food Recognition**: Uses a TFLite model to identify food items from user photos
-- **Realistic Confidence Scores**: Provides meaningful confidence levels for predictions
-- **Recipe Suggestions**: Shows recipes based on recognized food items
-- **Nutrition Information**: Displays nutritional information for identified foods
-- **Multi-source Label Support**: Uses multiple label files for better food identification
-- **Knowledge Graph ID Support**: Handles specialized food IDs for better matching
+<table align="center">
+  <tr>
+    <td><img src="screenshoots/image.png" alt="Home" width="200"></td>
+    <td><img src="screenshoots/image2.png" alt="Hasil deteksi" width="200"></td>
+    <td><img src="screenshoots/image3.png" alt="Nutrisi" width="200"></td>
+    <td><img src="screenshoots/image4.png" alt="Resep" width="200"></td>
+  </tr>
+  <tr>
+    <td align="center">Home</td>
+    <td align="center">Hasil deteksi</td>
+    <td align="center">Nutrisi</td>
+    <td align="center">Resep</td>
+  </tr>
+</table>
 
-## App Screenshots
+---
 
-<div align="center">
-  <img src="screenshoots/image.png" alt="Food Recognition" width="200"/>
-  <img src="screenshoots/image2.png" alt="Results Screen" width="200"/>
-  <img src="screenshoots/image3.png" alt="Nutrition Information" width="200"/>
-  <img src="screenshoots/image4.png" alt="Recipe Suggestions" width="200"/>
-</div>
+## 📖 Tentang
 
-## Recent Updates
+Aplikasi Flutter yang mengenali makanan dari foto memakai model **TensorFlow Lite** yang
+berjalan di perangkat, lalu melengkapi hasilnya dengan resep dan informasi nutrisi.
+Kombinasi on-device ML dan AI cloud memberi detail tanpa harus selalu online.
 
-### Improved Confidence Score Display
+---
 
-- Added a more realistic confidence score calculation that avoids always showing 100%
-- Implemented a visual confidence bar with color indicators
-- Added descriptive confidence level texts
-- See [confidence score implementation documentation](docs/confidence_score_implementation.md) for details
+## 🌟 Fitur
 
-### Enhanced Model Label Extraction
+- **Pengenalan makanan** dengan model TFLite dari foto kamera atau galeri
+- **Confidence score realistis** — bar visual berwarna dan label tingkat keyakinan
+- **Saran resep** berdasarkan makanan yang terdeteksi
+- **Informasi nutrisi** untuk makanan yang dikenali
+- **Multi-label support** dengan file label primer dan fallback
+- **Knowledge Graph ID** untuk pencocokan makanan yang lebih akurat
+- **Cropping gambar** sebelum prediksi (`image_cropper`)
 
-- Now supports both primary and fallback label files
-- Better handling for Knowledge Graph IDs and special labels
+---
 
-## Technical Implementation
+## 🛠️ Tech Stack
 
-The app uses:
+| Area | Pilihan |
+|---|---|
+| Framework | Flutter |
+| On-device ML | `tflite_flutter`, `firebase_ml_model_downloader` |
+| AI cloud | `google_generative_ai` (Gemini) |
+| State management | BLoC |
+| Input | `camera`, `image_picker`, `image_cropper` |
+| Isolate | `flutter_isolate` untuk inferensi berat |
 
-- TensorFlow Lite for on-device inference
-- Firebase ML for model management
-- Gemini API for enhanced recipe and nutrition information
-- Flutter for cross-platform UI
-- Environment variables for secure API key storage
+---
 
-### Architecture Diagram
+## 🚀 Menjalankan
 
-```mermaid
-flowchart TB
-    subgraph User Interface
-        HomeScreen --> CameraScreen
-        HomeScreen --> GalleryPicker
-        CameraScreen --> ResultScreen
-        GalleryPicker --> ResultScreen
-        ResultScreen --> NutritionTab
-        ResultScreen --> RecipeTab
-    end
-
-    subgraph Services
-        TfliteService
-        FirebaseMlService
-        GeminiApiService
-        ImagePickerService
-    end
-
-    subgraph Models
-        PredictionModel
-        NutritionModel
-    end
-
-    subgraph Utils
-        ModelLabelExtractor
-        EnvValidator
-    end
-
-    CameraScreen --> TfliteService
-    GalleryPicker --> ImagePickerService
-    ImagePickerService --> TfliteService
-    TfliteService --> PredictionModel
-    TfliteService --> ModelLabelExtractor
-    TfliteService --> FirebaseMlService
-    ResultScreen --> PredictionModel
-    NutritionTab --> GeminiApiService
-    RecipeTab --> GeminiApiService
-    GeminiApiService --> NutritionModel
-    FirebaseMlService --> TfliteService
+```bash
+flutter pub get
+flutter run
 ```
 
-### Key Components
+Model TFLite dan label file diunduh lewat Firebase ML Model Downloader; pastikan project
+Firebase sudah dikonfigurasi. API key Gemini diatur di konfigurasi aplikasi.
 
-1. **UI Layer**: Flutter screens and widgets for user interaction
-2. **Service Layer**: Core functionality including ML inference and API interactions
-3. **Model Layer**: Data structures for predictions and nutrition information
-4. **Utility Layer**: Helper classes for label extraction and environment validation
+---
 
-## Getting Started
+## 📚 Catatan Implementasi
 
-### Prerequisites
+- [Confidence score implementation](docs/confidence_score_implementation.md)
 
-- Flutter SDK (version 3.x or higher)
-- Dart SDK (version 3.x or higher)
-- Android Studio or VS Code with Flutter extensions
-- A Gemini API key (from Google AI Studio)
-- Firebase project (for ML model downloading)
+---
 
-### Installation Steps
+## 📄 Lisensi
 
-1. **Clone the repository**
-
-   ```bash
-   git clone https://github.com/yourusername/ai_food_recognizer_app.git
-   cd ai_food_recognizer_app
-   ```
-
-2. **Set up environment variables**
-
-   ```bash
-   cp .env.example .env
-   ```
-
-3. **Add your API keys to the `.env` file**
-
-   ```
-   GEMINI_API_KEY=your_api_key_here
-   ```
-
-4. **Install dependencies**
-
-   ```bash
-   flutter pub get
-   ```
-
-5. **Run the app**
-   ```bash
-   flutter run
-   ```
-
-### Troubleshooting
-
-- If you encounter issues with the TensorFlow Lite model, check the `assets/ML/` directory to ensure all model files are present
-- For Firebase ML model downloader issues, verify your Firebase configuration in `firebase_options.dart`
-- If Gemini API calls fail, confirm your API key is correctly set in the `.env` file
-
-## Testing
-
-Run tests with: `flutter test`
-
-## Environment Setup
-
-This application uses environment variables for secure configuration. For detailed setup instructions, see the [Environment Variables Setup](docs/environment_variables_setup.md) documentation.
-
-Key environment variables:
-
-- `GEMINI_API_KEY`: Required for food description, nutrition information, and recipe enhancement features
-
-## Application Flow
-
-The AI Food Recognizer App follows this workflow:
-
-```mermaid
-graph TD
-    A[Start App] --> B[Take Picture/Select from Gallery]
-    B --> C[Process Image with TensorFlow Lite]
-    C --> D[Display Recognition Results with Confidence Score]
-    D --> E{Select Tab}
-    E --> F[Nutrition Information]
-    E --> G[Recipe Suggestions]
-    F --> H[View Detailed Food Information]
-    G --> I[View Recipes]
-```
-
-1. **Image Capture**: Users can take a photo of food using the camera or select an image from the gallery
-2. **Food Recognition**: The TFLite model processes the image to identify the food
-3. **Results Display**: The app shows the recognized food with a realistic confidence score
-4. **Detailed Information**: Users can view nutritional facts and recipe suggestions in separate tabs
-5. **AI-Enhanced Content**: Gemini AI enhances food descriptions and recipe recommendations
-
-## Contributors
-
-- Developer Team @ DICODING
-- Created on: June 2025
-
-## License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## Acknowledgements
-
-- Google for providing the Gemini API and TensorFlow Lite
-- Flutter team for the excellent cross-platform framework
-- DICODING for project guidance and support
+MIT © Fatchurizkia Ruly Octareza
