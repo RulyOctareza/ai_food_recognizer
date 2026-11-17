@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/preview/hero.png" alt="AI Food Recognizer — ilustrasi aplikasi pengenal makanan" width="100%">
+  <img src="docs/preview/hero.svg" alt="AI Food Recognizer — ilustrasi aplikasi pengenal makanan" width="100%">
 </p>
 
 <h1 align="center">AI Food Recognizer</h1>
